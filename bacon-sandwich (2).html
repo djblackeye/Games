@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BACON SANDWICH</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#0a0300;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  min-height:100vh;
+  font-family:'Courier New',monospace;
+  gap:8px;
+}
+canvas {
+  border:2px solid #cc4400;
+  image-rendering:pixelated;
+  box-shadow:0 0 40px #ff220022;
+  display:block;
+}
+#bar { display:flex; gap:10px; align-items:center; }
+#mbtn {
+  background:#180600; color:#ff8833;
+  border:1px solid #cc4400; padding:3px 12px;
+  cursor:pointer; font-family:'Courier New',monospace;
+  font-size:11px; letter-spacing:1px;
+}
+#mbtn:hover { background:#2a0a00; }
+#trk { color:#553311; font-size:11px; }
+#hint { color:#442211; font-size:11px; letter-spacing:1px; text-align:center; }
+</style>
+</head>
+<body>
+<canvas id="c" width="480" height="560"></canvas>
+<div id="bar">
+  <button id="mbtn">&#9654; LOAD CHIPTUNE</button>
+  <span id="trk">&#8212; no track loaded &#8212;</span>
+</div>
+<div id="hint">ARROWS: MOVE &amp; CLIMB &nbsp;|&nbsp; SPACE: THROW SAUCE (x3) &nbsp;|&nbsp; AVOID THE SALAD GANG!</div>
+
+<script>
+// AUDIO
+let aCtx,aSrc,aBuf;
+document.getElementById('mbtn').onclick=()=>{
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='audio/*';
+  inp.onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    document.getElementById('trk').textContent='loading...';
+    if(!aCtx) aCtx=new AudioContext();
+    if(aSrc){try{aSrc.stop();}catch(_){}}
+    aBuf=await aCtx.decodeAudioData(await f.arrayBuffer());
+    aSrc=aCtx.createBufferSource();
+    aSrc.buffer=aBuf; aSrc.loop=true;
+    aSrc.connect(aCtx.destination); aSrc.start();
+    document.getElementById('trk').textContent='♪ '+f.name;
+  };
+  inp.click();
+};
+
+// CANVAS
+const cv=document.getElementById('c');
+const cx=cv.getContext('2d');
+const W=480,H=560;
+
+// CONSTANTS
+const PY=[85,180,275,370,450]; // platform Y tops
+const PH=8;   // platform thickness
+const PW=16,PH2=24; // player size
+const EW=16,EH=16;  // enemy size
+const IH=12;  // ingredient height
+const NS=6;   // segments per ingredient
+const SW=72;  // segment width
+const IX=24;  // ingredient start X
+const LW=12;  // ladder width
+const LS=14;  // ladder snap tolerance
+
+// Ladders: from=upper platform index, to=lower
+const LADS=[
+  {x:72,  from:0,to:1},
+  {x:368, from:0,to:1},
+  {x:136, from:1,to:2},
+  {x:332, from:1,to:2},
+  {x:84,  from:2,to:3},
+  {x:244, from:2,to:3},
+  {x:404, from:2,to:3},
+  // no ladders to platform 4 - it's the sandwich zone!
+];
+
+// Stars
+const STARS=Array.from({length:60},()=>({
+  x:Math.random()*W, y:Math.random()*H,
+  s:Math.random()<0.7?1:1.5,
+  a:0.08+Math.random()*0.3
+}));
+
+// Particle pool
+let parts=[];
+function spawnParts(x,y,col,n){
+  for(let i=0;i<n;i++){
+    const ang=Math.random()*Math.PI*2;
+    const spd=1+Math.random()*3;
+    parts.push({x,y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-1,
+      col,life:30+Math.random()*20,maxLife:50});
+  }
+}
+
+// GAME STATE
+let gs='start'; // start|playing|dead|win|gameover
+let score=0,lives=3,sauce=3,stTimer=0;
+let pl,enms,ings,projs;
+
+function resetGame(){ score=0; lives=3; resetLevel(); gs='playing'; }
+
+function resetLevel(){
+  ings=[
+    mkI('BREAD',0),
+    mkI('SAUCE',1),
+    mkI('EGG',  2),
+    mkI('BACON',3),
+  ];
+  respawn();
+}
+
+function respawn(){
+  sauce=3;
+  pl={
+    x:W/2-PW/2, y:PY[2]-PH2,
+    platIdx:2,
+    onLad:false, ladIdx:-1,
+    dir:1, af:0, at:0,
+    inv:180
+  };
+  // All enemies start well away from player (centre of platform 2)
+  enms=[
+    mkE('LET',  0, 30),  mkE('LET',  2, 420),
+    mkE('CUC',  1, 380), mkE('CUC',  3,  40),
+    mkE('RBAC', 1,  50), mkE('RBAC', 3, 400),
+  ];
+  projs=[];
+  parts=[];
+}
+
+function mkI(type,pi){
+  return{type,platIdx:pi,falling:false,
+    fy:PY[pi]-IH,fv:0,segs:Array(NS).fill(false)};
+}
+function mkE(type,pi,x){
+  const sp={LET:1.0,CUC:0.65,RBAC:1.7}[type];
+  return{type,platIdx:pi,x,y:PY[pi]-EH,
+    dir:Math.random()<.5?1:-1,speed:sp,
+    stun:0,onLad:false,ladIdx:-1,ladDir:0,
+    think:Math.floor(Math.random()*100),cool:0};
+}
+
+// INPUT
+const K={};
+document.addEventListener('keydown',e=>{
+  K[e.code]=true;
+  if(['Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
+  if(e.code==='Space'||e.code==='Enter'){
+    if(gs==='start'||gs==='gameover') resetGame();
+    else if(gs==='playing') doSauce();
+  }
+});
+document.addEventListener('keyup',e=>{ K[e.code]=false; });
+
+function doSauce(){
+  if(sauce<=0||pl.onLad) return;
+  sauce--;
+  projs.push({
+    x:pl.x+(pl.dir>0?PW+2:-10),
+    y:pl.y+PH2/2,
+    vx:pl.dir*7,
+    pi:pl.platIdx, life:55
+  });
+  spawnParts(pl.x+PW/2,pl.y+PH2/2,'#cc2211',6);
+}
+
+// STACK POSITION for platform 4
+function stackY(type){
+  const idx={BACON:0,EGG:1,SAUCE:2,BREAD:3}[type]??0;
+  return PY[4]-IH*(idx+2); // +2 because +1 for base bread, +1 for this layer
+}
+
+// UPDATE
+function update(){
+  if(gs==='dead'||gs==='win'){
+    if(--stTimer<=0){
+      if(gs==='win'){ resetLevel(); gs='playing'; }
+      else if(lives<=0) gs='gameover';
+      else { respawn(); gs='playing'; }
+    }
+    updateParts(); return;
+  }
+  if(gs!=='playing') return;
+
+  updatePl();
+  updateEnms();
+  updateIngs();
+  updateProjs();
+  updateParts();
+  checkHits();
+
+  if(ings.every(i=>i.platIdx===4&&!i.falling)){
+    score+=1000;
+    spawnParts(W/2,PY[4]-IH*3,'#ffcc44',40);
+    gs='win'; stTimer=220;
+  }
+}
+
+function updatePl(){
+  const p=pl;
+  if(++p.at>8){p.af^=1;p.at=0;}
+
+  if(p.onLad){
+    const l=LADS[p.ladIdx];
+    if(K['ArrowUp'])   p.y-=2;
+    if(K['ArrowDown']) p.y+=2;
+    p.x=l.x+LW/2-PW/2;
+    const topY=PY[l.from]-PH2;
+    const botY=PY[l.to]-PH2;
+    if(p.y<=topY){p.y=topY;p.platIdx=l.from;p.onLad=false;}
+    if(p.y>=botY){p.y=botY;p.platIdx=l.to;p.onLad=false;}
+  } else {
+    if(K['ArrowLeft']) {p.x-=2;p.dir=-1;}
+    if(K['ArrowRight']){p.x+=2;p.dir=1;}
+    p.x=Math.max(0,Math.min(W-PW,p.x));
+    p.y=PY[p.platIdx]-PH2;
+
+    if(K['ArrowUp']&&p.platIdx>0){
+      for(let i=0;i<LADS.length;i++){
+        const l=LADS[i];
+        if(l.to===p.platIdx&&Math.abs(p.x+PW/2-l.x-LW/2)<LS){
+          p.onLad=true;p.ladIdx=i;break;
+        }
+      }
+    }
+    if(K['ArrowDown']&&p.platIdx<3){
+      for(let i=0;i<LADS.length;i++){
+        const l=LADS[i];
+        if(l.from===p.platIdx&&Math.abs(p.x+PW/2-l.x-LW/2)<LS){
+          p.onLad=true;p.ladIdx=i;break;
+        }
+      }
+    }
+
+    // Walk over ingredient segments
+    for(const ing of ings){
+      if(ing.platIdx!==p.platIdx||ing.falling) continue;
+      let newSeg=false;
+      for(let s=0;s<NS;s++){
+        if(!ing.segs[s]){
+          const sx=IX+s*SW;
+          if(p.x+PW>sx+4&&p.x<sx+SW-4){
+            ing.segs[s]=true; score+=10; newSeg=true;
+          }
+        }
+      }
+      if(newSeg) spawnParts(p.x+PW/2,p.y,'#ffaa22',3);
+      if(!ing.falling&&ing.segs.every(Boolean)){
+        ing.falling=true;
+        ing.fy=PY[ing.platIdx]-IH;
+        ing.fv=0;
+        spawnParts(IX+NS*SW/2,ing.fy,'#ffdd44',10);
+      }
+    }
+  }
+  if(p.inv>0) p.inv--;
+}
+
+function updateEnms(){
+  for(const e of enms){
+    if(e.stun>0){e.stun--;continue;}
+    if(e.onLad){
+      const l=LADS[e.ladIdx];
+      e.y+=e.ladDir*e.speed;
+      e.x=l.x+LW/2-EW/2;
+      if(e.y<=PY[l.from]-EH){e.y=PY[l.from]-EH;e.platIdx=l.from;e.onLad=false;e.cool=80;}
+      if(e.y>=PY[l.to]-EH)  {e.y=PY[l.to]-EH;  e.platIdx=l.to;  e.onLad=false;e.cool=80;}
+      continue;
+    }
+    if(--e.think<=0){
+      e.think=55+Math.floor(Math.random()*80);
+      if(e.cool<=0&&Math.random()<0.38){
+        const goUp=pl.platIdx<e.platIdx;
+        const goDn=pl.platIdx>e.platIdx;
+        for(let i=0;i<LADS.length;i++){
+          const l=LADS[i];
+          const tryU=goUp&&l.to===e.platIdx;
+          const tryD=goDn&&l.from===e.platIdx;
+          if(!tryU&&!tryD) continue;
+          if(Math.abs(e.x+EW/2-l.x-LW/2)<70){
+            e.onLad=true;e.ladIdx=i;e.ladDir=tryU?-1:1;break;
+          }
+        }
+      }
+    }
+    if(e.cool>0) e.cool--;
+    if(!e.onLad){
+      if(e.platIdx===pl.platIdx)
+        e.dir=pl.x+PW/2>e.x+EW/2?1:-1;
+      e.x+=e.dir*e.speed;
+      e.y=PY[e.platIdx]-EH;
+      if(e.x<0){e.x=0;e.dir=1;}
+      if(e.x+EW>W){e.x=W-EW;e.dir=-1;}
+    }
+  }
+}
+
+function updateIngs(){
+  for(const ing of ings){
+    if(!ing.falling) continue;
+    ing.fv=Math.min(ing.fv+0.55,10);
+    ing.fy+=ing.fv;
+    const np=ing.platIdx+1;
+    if(np>=PY.length){ing.falling=false;continue;}
+    const tY=np===4?stackY(ing.type):PY[np]-IH;
+    if(ing.fy>=tY){
+      ing.fy=tY;
+      ing.platIdx=np;
+      ing.falling=false;
+      ing.segs=Array(NS).fill(false);
+      score+=50;
+      spawnParts(IX+NS*SW/2,tY,'#ff8822',12);
+      // squash enemies
+      for(const e of enms){
+        if(e.onLad||e.stun>180||e.platIdx!==np) continue;
+        if(e.x+EW>IX&&e.x<IX+NS*SW){
+          e.stun=320; score+=300;
+          spawnParts(e.x+EW/2,e.y,'#88ff44',15);
+        }
+      }
+    }
+  }
+}
+
+function updateProjs(){
+  for(let i=projs.length-1;i>=0;i--){
+    const p=projs[i];
+    p.x+=p.vx; p.life--;
+    if(p.life<=0||p.x<-20||p.x>W+20){projs.splice(i,1);continue;}
+    let hit=false;
+    for(const e of enms){
+      if(e.stun>0||e.onLad||e.platIdx!==p.pi) continue;
+      if(p.x+8>e.x&&p.x-8<e.x+EW){
+        e.stun=200; score+=50;
+        spawnParts(e.x+EW/2,e.y,'#ff4422',12);
+        hit=true; break;
+      }
+    }
+    if(hit) projs.splice(i,1);
+  }
+}
+
+function updateParts(){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.15;
+    p.life--;
+    if(p.life<=0) parts.splice(i,1);
+  }
+}
+
+function checkHits(){
+  if(pl.inv>0) return;
+  const pcx=pl.x+PW/2, pcy=pl.y+PH2/2;
+  for(const e of enms){
+    if(e.stun>0) continue;
+    const ecx=e.x+EW/2, ecy=e.y+EH/2;
+    if(Math.hypot(pcx-ecx,pcy-ecy)<12){
+      lives--;
+      spawnParts(pcx,pcy,'#ff2222',20);
+      gs='dead'; stTimer=140; return;
+    }
+  }
+}
+
+// DRAW
+function draw(){
+  cx.fillStyle='#070100';
+  cx.fillRect(0,0,W,H);
+
+  // Stars
+  for(const s of STARS){
+    cx.globalAlpha=s.a;
+    cx.fillStyle='#ffe8c0';
+    cx.fillRect(s.x,s.y,s.s,s.s);
+  }
+  cx.globalAlpha=1;
+
+  // Platforms
+  for(let i=0;i<PY.length;i++){
+    const py=PY[i];
+    cx.fillStyle='#1c0e04';
+    cx.fillRect(0,py,W,PH);
+    cx.fillStyle='#7a4018';
+    cx.fillRect(0,py,W,2);
+    cx.fillStyle='#0a0601';
+    cx.fillRect(0,py+PH-2,W,2);
+  }
+
+  // Plate rim on platform 4
+  cx.fillStyle='#ccbbaa';
+  cx.fillRect(IX-8,PY[4]-4,NS*SW+16,5);
+  cx.fillStyle='#eeddcc';
+  cx.fillRect(IX-4,PY[4]-3,NS*SW+8,3);
+
+  // Ladders
+  for(const l of LADS){
+    const y1=PY[l.from]+PH, y2=PY[l.to];
+    cx.fillStyle='#3a1808';
+    cx.fillRect(l.x,y1,3,y2-y1);
+    cx.fillRect(l.x+LW-3,y1,3,y2-y1);
+    cx.fillStyle='#6a3010';
+    for(let ry=y1+4;ry<y2;ry+=10) cx.fillRect(l.x,ry,LW,2);
+  }
+
+  // Base bread (always on platform 4)
+  drawBread(IX,PY[4]-IH,true);
+
+  // Ingredients
+  for(const ing of ings){
+    const iy=ing.falling?ing.fy:(ing.platIdx===4?stackY(ing.type):PY[ing.platIdx]-IH);
+    drawIng(ing,IX,iy);
+  }
+
+  // Particles
+  for(const p of parts){
+    const a=p.life/p.maxLife;
+    cx.globalAlpha=a;
+    cx.fillStyle=p.col;
+    cx.fillRect(p.x-2,p.y-2,4,4);
+  }
+  cx.globalAlpha=1;
+
+  // Projectiles
+  for(const p of projs){
+    cx.fillStyle='#cc2211';
+    cx.beginPath();cx.arc(p.x,p.y,5,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#ff5533';
+    for(let a=0;a<6;a++){
+      const ag=(a/6)*Math.PI*2;
+      cx.fillRect(p.x+Math.cos(ag)*5-1,p.y+Math.sin(ag)*5-1,3,3);
+    }
+  }
+
+  // Enemies
+  for(const e of enms) drawEnemy(e);
+
+  // Player
+  drawPlayer();
+
+  // HUD
+  drawHUD();
+
+  // Overlays
+  if(gs==='start')    drawOver('BACON SANDWICH','#ff6622','BUILD THE PERFECT SARNIE!\nAVOID THE SALAD GANG!',true);
+  if(gs==='dead')     drawOver('OH NO!','#ff4444',lives>0?`LIVES LEFT: ${lives}`:'LAST LIFE GONE...',false);
+  if(gs==='gameover') drawOver('GAME OVER','#ff2222',`FINAL SCORE: ${score}`,true);
+  if(gs==='win')      drawOver('SANDWICH COMPLETE!','#ffcc44','+1000 BONUS POINTS!\nDELICIOUS!',false);
+}
+
+function drawBread(x,y,isBase){
+  const tw=NS*SW-1;
+  cx.fillStyle=isBase?'#b87020':'#d4882a';
+  cx.fillRect(x,y,tw,IH);
+  cx.fillStyle='#7a4010';
+  cx.fillRect(x,y,tw,2);
+  cx.fillStyle=isBase?'#d49030':'#f0b840';
+  cx.fillRect(x+2,y+2,tw-4,3);
+  cx.fillStyle='#00000033';
+  cx.fillRect(x,y+IH-2,tw,2);
+}
+
+function drawIng(ing,x,y){
+  for(let s=0;s<NS;s++){
+    const sx=x+s*SW;
+    drawSeg(ing.type,sx,y,SW-1,ing.segs[s],s);
+  }
+}
+
+function drawSeg(type,sx,y,sw,walked,si){
+  if(type==='BREAD'){
+    cx.fillStyle=walked?'#f0b040':'#d4882a';
+    cx.fillRect(sx,y,sw,IH);
+    cx.fillStyle='#7a4010'; cx.fillRect(sx,y,sw,2);
+    cx.fillStyle='#f5c855'; cx.fillRect(sx+2,y+2,sw-4,3);
+  } else if(type==='SAUCE'){
+    cx.fillStyle=walked?'#ff5533':'#cc2211';
+    cx.fillRect(sx,y,sw,IH);
+    cx.fillStyle='#881100'; cx.fillRect(sx,y,sw,2);
+    cx.fillStyle='#dd2200';
+    cx.fillRect(sx+sw/2-2,y+IH-4,5,5);
+  } else if(type==='EGG'){
+    cx.fillStyle=walked?'#ffffff':'#fffbe0';
+    cx.fillRect(sx,y,sw,IH);
+    cx.fillStyle='#c8c888'; cx.fillRect(sx,y,sw,2);
+    if(si===2||si===3){
+      cx.fillStyle='#ffdd00';
+      cx.beginPath();cx.arc(sx+sw/2,y+IH/2+1,4,0,Math.PI*2);cx.fill();
+    }
+  } else if(type==='BACON'){
+    cx.fillStyle=walked?'#ff6644':'#cc3322';
+    cx.fillRect(sx,y,sw,IH);
+    cx.fillStyle='#881500'; cx.fillRect(sx,y,sw,2);
+    cx.fillStyle='#ffaa88'; cx.fillRect(sx+2,y+3,sw-4,3);
+    cx.fillStyle='#cc3322'; cx.fillRect(sx+2,y+6,sw-4,2);
+  }
+  cx.fillStyle='#00000033';
+  cx.fillRect(sx+sw,y,1,IH);
+  cx.fillRect(sx,y+IH-2,sw,2);
+}
+
+function drawEnemy(e){
+  if(e.stun>0&&Math.floor(e.stun/8)%2) cx.globalAlpha=0.3;
+  const ex=e.x, ey=e.y;
+
+  if(e.type==='LET'){
+    // Lettuce - ruffled villain
+    cx.fillStyle='#228844';
+    cx.fillRect(ex+2,ey+4,EW-4,EH-4);
+    cx.fillStyle='#44cc66';
+    cx.fillRect(ex,  ey+6,4,6);
+    cx.fillRect(ex+EW-4,ey+6,4,6);
+    cx.fillRect(ex+4,ey,EW-8,4);
+    cx.fillRect(ex+2,ey+2,4,4);
+    cx.fillRect(ex+EW-6,ey+2,4,4);
+    cx.fillStyle='#000';
+    cx.fillRect(ex+4,ey+7,2,2);
+    cx.fillRect(ex+EW-6,ey+7,2,2);
+    cx.fillRect(ex+4,ey+12,EW-8,1);
+    cx.fillRect(ex+3,ey+13,2,1);
+    cx.fillRect(ex+EW-5,ey+13,2,1);
+  } else if(e.type==='CUC'){
+    // Cucumber - smug cylinder
+    cx.fillStyle='#226633';
+    cx.fillRect(ex+1,ey+2,EW-2,EH-4);
+    cx.fillStyle='#33aa44';
+    cx.fillRect(ex+3,ey+2,EW-6,2);
+    cx.fillStyle='#113322';
+    for(let sy=ey+5;sy<ey+EH-2;sy+=3) cx.fillRect(ex+1,sy,EW-2,1);
+    cx.fillStyle='#000';
+    cx.fillRect(ex+4,ey+5,2,2);
+    cx.fillRect(ex+EW-6,ey+5,2,2);
+    cx.fillRect(ex+5,ey+12,EW-10,1);
+  } else if(e.type==='RBAC'){
+    // ROGUE BACON - the traitor!
+    cx.fillStyle='#cc2211';
+    cx.fillRect(ex,ey+3,EW,EH-6);
+    cx.fillStyle='#ff8866';
+    cx.fillRect(ex+1,ey+5,EW-2,3);
+    cx.fillStyle='#cc2211';
+    cx.fillRect(ex,  ey+1,5,4);
+    cx.fillRect(ex+EW-5,ey+2,5,4);
+    cx.fillRect(ex+4,ey,5,4);
+    cx.fillRect(ex+EW-9,ey+1,4,3);
+    cx.fillStyle='#ffff44';
+    cx.fillRect(ex+3,ey+5,2,2);
+    cx.fillRect(ex+EW-5,ey+5,2,2);
+    // Evil grin
+    cx.fillStyle='#000';
+    cx.fillRect(ex+4,ey+9,EW-8,1);
+    cx.fillRect(ex+4,ey+10,2,1);
+    cx.fillRect(ex+EW-6,ey+10,2,1);
+  }
+  cx.globalAlpha=1;
+}
+
+function drawPlayer(){
+  const p=pl;
+  if(p.inv>0&&Math.floor(p.inv/6)%2) cx.globalAlpha=0.2;
+  cx.save();
+  if(p.dir<0){
+    cx.translate(p.x+PW,p.y);
+    cx.scale(-1,1);
+    cx.translate(-p.x,-p.y);
+  }
+  const x=p.x, y=p.y;
+  // Chef hat
+  cx.fillStyle='#ffffff';
+  cx.fillRect(x+3,y,PW-6,4);
+  cx.fillRect(x+5,y-5,PW-10,6);
+  cx.fillStyle='#dddddd';
+  cx.fillRect(x+5,y-5,PW-10,1);
+  // Face
+  cx.fillStyle='#f4a060';
+  cx.fillRect(x+2,y+4,PW-4,6);
+  cx.fillStyle='#000';
+  cx.fillRect(x+4,y+6,2,2);
+  cx.fillRect(x+10,y+6,2,2);
+  cx.fillRect(x+6,y+9,4,1); // smile
+  // Body - white apron
+  cx.fillStyle='#f0f0f0';
+  cx.fillRect(x+2,y+10,PW-4,8);
+  cx.fillStyle='#cc2211'; // red neckcloth
+  cx.fillRect(x+5,y+10,PW-10,2);
+  cx.fillStyle='#dddddd';
+  cx.fillRect(x+6,y+12,4,6);
+  // Arms
+  cx.fillStyle='#f4a060';
+  cx.fillRect(x,   y+11,3,5);
+  cx.fillRect(x+PW-3,y+11,3,5);
+  // Legs animated
+  cx.fillStyle='#2a2a88';
+  const lo=p.af*2;
+  cx.fillRect(x+2,y+18,5,5+lo);
+  cx.fillRect(x+9,y+18,5,7-lo);
+  cx.restore();
+  cx.globalAlpha=1;
+}
+
+function drawHUD(){
+  cx.fillStyle='#070100';
+  cx.fillRect(0,0,W,40);
+  cx.fillStyle='#2a1000';
+  cx.fillRect(0,38,W,2);
+
+  // Score
+  cx.fillStyle='#ffcc44';
+  cx.font='bold 13px "Courier New"';
+  cx.textAlign='left';
+  cx.fillText('SCORE',8,15);
+  cx.fillStyle='#fff';
+  cx.fillText(String(score).padStart(7,'0'),8,32);
+
+  // Title
+  cx.fillStyle='#ff7733';
+  cx.textAlign='center';
+  cx.font='bold 14px "Courier New"';
+  cx.fillText('BACON SANDWICH',W/2,22);
+
+  // Progress pips
+  const done=ings.filter(i=>i.platIdx===4&&!i.falling).length;
+  cx.font='11px "Courier New"';
+  cx.fillStyle='#664422';
+  cx.fillText(`LAYERS: ${'[X]'.repeat(done)}${'[ ]'.repeat(4-done)}`,W/2,35);
+
+  // Sauce
+  cx.fillStyle='#cc2211';
+  cx.textAlign='right';
+  cx.font='bold 13px "Courier New"';
+  cx.fillText('SAUCE',W-8,15);
+  for(let i=0;i<3;i++){
+    cx.fillStyle=i<sauce?'#dd2211':'#331100';
+    cx.fillRect(W-12-i*14,21,10,10);
+    if(i<sauce){cx.fillStyle='#ff5533';cx.fillRect(W-11-i*14,22,8,3);}
+  }
+
+  // Lives (mini hats)
+  cx.fillStyle='#ffcc44';
+  cx.textAlign='right';
+  cx.font='bold 11px "Courier New"';
+  cx.fillText('LIVES',W-8+14*3+6,35);
+  for(let i=0;i<lives;i++){
+    cx.fillStyle='#fff';
+    cx.fillRect(W-10-i*14,28,10,7);
+    cx.fillRect(W-13-i*14+3,24,7,5);
+  }
+}
+
+function drawOver(title,col,sub,showPress){
+  cx.fillStyle='#000000bb';
+  cx.fillRect(0,0,W,H);
+  cx.fillStyle=col;
+  cx.textAlign='center';
+  cx.font='bold 28px "Courier New"';
+  cx.fillText(title,W/2,H/2-30);
+  cx.fillStyle='#ffcc88';
+  cx.font='13px "Courier New"';
+  sub.split('\n').forEach((ln,i)=>cx.fillText(ln,W/2,H/2+10+i*22));
+  if(showPress&&Math.floor(Date.now()/500)%2){
+    cx.fillStyle='#fff';
+    cx.font='12px "Courier New"';
+    cx.fillText('PRESS SPACE OR ENTER',W/2,H/2+80);
+  }
+}
+
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+resetLevel(); // initialise arrays so draw() has something to iterate
+loop();
+</script>
+</body>
+</html>

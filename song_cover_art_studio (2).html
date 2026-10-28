@@ -1,0 +1,2881 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>600x600 Song Cover Art Studio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts for Authentic Genre Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=Cinzel:wght@600;800&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Inter:wght@400;500;600;700&family=Montserrat:ital,wght@0,700;0,900;1,800&family=Orbitron:wght@700;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Rye&family=Space+Grotesk:wght@600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <style>
+    :root {
+      --studio-bg: #0b0d13;
+      --panel-bg: #131722;
+      --panel-border: #23293a;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--studio-bg);
+      color: #f1f5f9;
+      overflow-x: hidden;
+    }
+
+    /* Hidden font preloader so HTML5 Canvas rasterizes web fonts immediately */
+    .font-preload {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Custom Range Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #1e2436;
+      border-radius: 999px;
+      outline: none;
+      border: 1px solid #2e364f;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      border: 2px solid #0f172a;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: #7dd3fc;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: 2px solid #334155;
+      border-radius: 6px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f131d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2b344b;
+      border-radius: 3px;
+    }
+
+    .canvas-stage {
+      background-image: 
+        linear-gradient(45deg, #161b28 25%, transparent 25%), 
+        linear-gradient(-45deg, #161b28 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #161b28 75%), 
+        linear-gradient(-45deg, transparent 75%, #161b28 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    #coverCanvas {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      max-width: 600px;
+      max-height: 600px;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #coverCanvas:active {
+      cursor: grabbing;
+    }
+
+    .preset-btn.active {
+      border-color: #38bdf8;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.16));
+    }
+
+    .left-tab-btn.active {
+      background-color: #1e293b;
+      color: #38bdf8;
+      border-bottom: 2px solid #38bdf8;
+    }
+
+    .align-btn.active {
+      background-color: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+
+    .vis-btn.off {
+      background-color: rgba(244, 63, 94, 0.15);
+      color: #fda4af;
+      border-color: rgba(244, 63, 94, 0.35);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col selection:bg-sky-500 selection:text-slate-950">
+
+  <div class="font-preload" aria-hidden="true">
+    <span style="font-family: 'Orbitron'; font-weight: 900;">ZUGZWANG</span>
+    <span style="font-family: 'Playfair Display'; font-weight: 900;">ZUGZWANG</span>
+    <span style="font-family: 'Anton'; font-weight: 400;">ZUGZWANG</span>
+    <span style="font-family: 'Cinzel'; font-weight: 800;">ZUGZWANG</span>
+    <span style="font-family: 'Montserrat'; font-weight: 900;">ZUGZWANG</span>
+    <span style="font-family: 'Rye'; font-weight: 400;">ZUGZWANG</span>
+    <span style="font-family: 'Space Grotesk'; font-weight: 700;">ZUGZWANG</span>
+    <span style="font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 700;">ZUGZWANG</span>
+    <span style="font-family: 'Chakra Petch'; font-weight: 700;">ZUGZWANG</span>
+    <span style="font-family: 'Archivo Black'; font-weight: 400;">ZUGZWANG</span>
+    <span style="font-family: 'Syne'; font-weight: 800;">ZUGZWANG</span>
+  </div>
+
+  <header class="border-b border-slate-800 bg-[#0f131c] sticky top-0 z-30 px-4 lg:px-6 py-3">
+    <div class="max-w-[1680px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 via-indigo-500 to-amber-500 p-[2px]">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+            <i class="fa-solid fa-compact-disc text-sky-400 text-lg"></i>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base sm:text-lg tracking-tight text-white">SLEEVE<span class="text-sky-400">CRAFT</span> 600</h1>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">Studio V1 Master</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Interactive 600×600 &amp; 1800×1800 Song Cover Art Generator</p>
+        </div>
+      </div>
+
+      <!-- Top Quick Bar -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="topRandomSeedBtn" type="button" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
+          <i class="fa-solid fa-dice text-amber-400"></i>
+          <span>Randomize Seed</span>
+        </button>
+
+        <button id="topClearOverlaysBtn" type="button" class="px-3 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-500/30 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>Clear All Overlays</span>
+        </button>
+
+        <button id="topDownload600Btn" type="button" class="px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer">
+          <i class="fa-solid fa-download"></i>
+          <span>Download 600×600 PNG</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-[1680px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 lg:p-6 items-start">
+
+    <!-- ===================================================================== -->
+    <!-- COLUMN 1: LEFT SIDEBAR PANEL (Presets, Typography, BG Image, Overlays) -->
+    <!-- ===================================================================== -->
+    <section class="lg:col-span-4 flex flex-col gap-4">
+
+      <!-- Section A: 9 Genre Visual Presets -->
+      <div class="bg-[#131722] border border-slate-800 rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-sky-400"></i>
+            <span>1. Genre Visual Presets (9)</span>
+          </h2>
+          <span id="activePresetBadge" class="text-[11px] font-semibold text-sky-300 bg-sky-500/15 px-2.5 py-0.5 rounded-md border border-sky-500/30">80s Synth-Pop</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-2">
+          <!-- 1. 80s Synth-Pop -->
+          <button type="button" data-preset="synthpop" class="preset-btn active text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-fuchsia-500 via-amber-400 to-cyan-400 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-chess-knight"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">80s Synth-Pop</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">3D Grid &amp; Monolith</span>
+          </button>
+
+          <!-- 2. 1900s Silent Monochrome -->
+          <button type="button" data-preset="silentfilm" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-stone-300 to-stone-700 text-stone-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-film"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">1900s Silent</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Monochrome Plaque</span>
+          </button>
+
+          <!-- 3. UK Happy Hardcore -->
+          <button type="button" data-preset="happyhardcore" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-400 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-bolt"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">Happy Hardcore</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Rave Sunburst &amp; Tilt</span>
+          </button>
+
+          <!-- 4. Classical Symphony -->
+          <button type="button" data-preset="classical" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-200 via-yellow-600 to-stone-900 text-stone-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-infinity"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">Classical</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Gold Harmonic Wave</span>
+          </button>
+
+          <!-- 5. Underground Club -->
+          <button type="button" data-preset="underground" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-400 to-teal-900 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-wave-square"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">Underground</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Warehouse Beams</span>
+          </button>
+
+          <!-- 6. Ballad (Piano Songs) -->
+          <button type="button" data-preset="ballad" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-200 via-amber-500 to-slate-900 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-music"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">Ballad (Piano)</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Keys &amp; Warm Dust</span>
+          </button>
+
+          <!-- 7. Drum and Bass -->
+          <button type="button" data-preset="dnb" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-lime-400 via-emerald-500 to-slate-950 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-crosshairs"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">Drum &amp; Bass</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Sub Shockwave HUD</span>
+          </button>
+
+          <!-- 8. Hip Hop -->
+          <button type="button" data-preset="hiphop" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-yellow-400 via-red-600 to-zinc-950 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-crown"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">Hip Hop</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Halftone &amp; Crown</span>
+          </button>
+
+          <!-- 9. R&B -->
+          <button type="button" data-preset="rnb" class="preset-btn text-left p-2.5 rounded-xl border border-slate-800 hover:border-slate-600 bg-slate-900/70 transition flex flex-col gap-1 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-gradient-to-br from-rose-300 via-fuchsia-600 to-indigo-950 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fa-solid fa-moon"></i>
+              </span>
+              <span class="text-xs font-bold text-white leading-tight">R&amp;B</span>
+            </div>
+            <span class="text-[10px] text-slate-400 leading-tight">Velvet Silk &amp; Eclipse</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-[#131722] border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
+        <!-- Tab Navigation Bar -->
+        <div class="grid grid-cols-3 border-b border-slate-800 bg-slate-950/70 text-xs font-semibold">
+          <button type="button" data-left-tab="panel-overlays" class="left-tab-btn active py-3 px-2 flex items-center justify-center gap-1.5 transition cursor-pointer">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Overlays &amp; FX</span>
+          </button>
+          <button type="button" data-left-tab="panel-type" class="left-tab-btn py-3 px-2 flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Type &amp; Colors</span>
+          </button>
+          <button type="button" data-left-tab="panel-bg" class="left-tab-btn py-3 px-2 flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer">
+            <i class="fa-solid fa-image"></i>
+            <span>Custom BG</span>
+          </button>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- PANEL 1: FINISHING OVERLAYS, CENTERPIECE TOGGLE & STAMPS        -->
+        <!-- =============================================================== -->
+        <div id="panel-overlays" class="left-tab-panel p-4 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Toggle Individual Overlays</span>
+            <div class="flex items-center gap-1.5">
+              <button id="clearAllOverlaysBtn" type="button" class="px-2.5 py-1 rounded-md bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 text-[11px] font-semibold transition cursor-pointer">
+                Clear All Overlays
+              </button>
+              <button id="restoreOverlaysBtn" type="button" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-medium transition cursor-pointer">
+                Restore
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-sky-500/30 cursor-pointer hover:border-sky-400 sm:col-span-2">
+              <span class="flex items-center gap-2 text-xs font-semibold text-sky-300">
+                <i class="fa-solid fa-cube"></i>
+                <span>Centerpiece Geometry Overlay</span>
+              </span>
+              <input id="fxCenterpieceToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-950 border-slate-600 text-sky-500 cursor-pointer" />
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <span class="text-xs font-medium text-slate-200">Vinyl Ring Wear</span>
+              <input id="fxVinylToggle" type="checkbox" class="w-4 h-4 rounded bg-slate-950 border-slate-600 text-sky-500 cursor-pointer" />
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <span class="text-xs font-medium text-slate-200">Film Grain</span>
+              <input id="fxGrainToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-950 border-slate-600 text-sky-500 cursor-pointer" />
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <span class="text-xs font-medium text-slate-200">CRT Scanlines</span>
+              <input id="fxScanlinesToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-950 border-slate-600 text-sky-500 cursor-pointer" />
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <span class="text-xs font-medium text-slate-200">Dark Vignette</span>
+              <input id="fxVignetteToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-950 border-slate-600 text-sky-500 cursor-pointer" />
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 cursor-pointer hover:border-slate-700 sm:col-span-2">
+              <span class="text-xs font-medium text-slate-200">Decorative Border Frame</span>
+              <input id="fxBorderToggle" type="checkbox" checked class="w-4 h-4 rounded bg-slate-950 border-slate-600 text-sky-500 cursor-pointer" />
+            </label>
+          </div>
+
+          <!-- Surface Texture Intensity Slider -->
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">Overlay Texture Strength</span>
+              <span id="fxIntensityVal" class="font-mono text-sky-400">55%</span>
+            </div>
+            <input id="fxIntensitySlider" type="range" min="0" max="100" value="55" />
+          </div>
+
+          <!-- Corner Badge / Stamp Selector -->
+          <div class="border-t border-slate-800 pt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="badgeStyleSelect" class="block text-xs font-medium text-slate-400 mb-1">Corner Badge / Stamp</label>
+              <select id="badgeStyleSelect" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-medium focus:outline-none focus:border-sky-400">
+                <option value="none">None (Clean Sleeve)</option>
+                <option value="explicit">Parental Advisory (Explicit Content)</option>
+                <option value="limited">Limited Edition Vinyl Stamp</option>
+                <option value="djpromo">DJ Promo Only</option>
+                <option value="hires" selected>Hi-Res Master</option>
+              </select>
+            </div>
+            <div>
+              <label for="badgeCornerSelect" class="block text-xs font-medium text-slate-400 mb-1">Stamp Position</label>
+              <select id="badgeCornerSelect" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-medium focus:outline-none focus:border-sky-400">
+                <option value="br">Bottom Right</option>
+                <option value="bl">Bottom Left</option>
+                <option value="tr">Top Right</option>
+                <option value="tl">Top Left</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- PANEL 2: TYPOGRAPHY, COMPOSITION LAYOUT & COLOR PICKERS         -->
+        <!-- =============================================================== -->
+        <div id="panel-type" class="left-tab-panel hidden p-4 flex flex-col gap-3.5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="layoutSelect" class="block text-xs font-medium text-slate-400 mb-1">Composition Layout</label>
+              <select id="layoutSelect" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-medium focus:outline-none focus:border-sky-400">
+                <option value="split">Top/Bottom Split</option>
+                <option value="center">Center Stack</option>
+                <option value="editorial">Bottom-Left Editorial</option>
+                <option value="classic">Classic Plaque Frame</option>
+                <option value="diagonal">Diagonal Rave Tilt</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="fontFamilySelect" class="block text-xs font-medium text-slate-400 mb-1">Font Family</label>
+              <select id="fontFamilySelect" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-medium focus:outline-none focus:border-sky-400">
+                <option value="Orbitron">Orbitron (Synth Display)</option>
+                <option value="Playfair Display">Playfair Display (Classic Serif)</option>
+                <option value="Anton">Anton (Rave Block)</option>
+                <option value="Cinzel">Cinzel (Symphony Serif)</option>
+                <option value="Space Grotesk">Space Grotesk (Brutalist Sans)</option>
+                <option value="Cormorant Garamond">Cormorant Garamond (Ballad Serif)</option>
+                <option value="Chakra Petch">Chakra Petch (DnB Tech)</option>
+                <option value="Archivo Black">Archivo Black (Hip Hop Heavy)</option>
+                <option value="Syne">Syne (R&amp;B Modern Sans)</option>
+                <option value="Montserrat">Montserrat (Geometric Bold)</option>
+                <option value="Rye">Rye (Vintage Slab)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Sliders -->
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">Title Font Size</span>
+              <span id="titleSizeVal" class="font-mono text-sky-400">68 px</span>
+            </div>
+            <input id="titleSizeSlider" type="range" min="24" max="120" value="68" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">Artist Font Size</span>
+              <span id="artistSizeVal" class="font-mono text-sky-400">24 px</span>
+            </div>
+            <input id="artistSizeSlider" type="range" min="12" max="64" value="24" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-400">Letter Tracking</span>
+                <span id="trackingVal" class="font-mono text-sky-400">4 px</span>
+              </div>
+              <input id="trackingSlider" type="range" min="-2" max="24" value="4" />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-400">Vertical Offset</span>
+                <span id="textYOffsetVal" class="font-mono text-sky-400">0 px</span>
+              </div>
+              <input id="textYOffsetSlider" type="range" min="-150" max="150" value="0" />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">Text Glow / Backing Intensity</span>
+              <span id="textGlowVal" class="font-mono text-sky-400">55%</span>
+            </div>
+            <input id="textGlowSlider" type="range" min="0" max="100" value="55" />
+          </div>
+
+          <!-- Color Pickers -->
+          <div class="border-t border-slate-800 pt-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Color Palette</span>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input id="textBackdropToggle" type="checkbox" checked class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-sky-500" />
+                <span>Dark Backing Plate</span>
+              </label>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2 text-center">
+              <div class="bg-slate-900 p-2 rounded-xl border border-slate-800 flex flex-col items-center gap-1">
+                <input id="primaryAccentColorInput" type="color" value="#22d3ee" title="Primary Accent Color" />
+                <span class="text-[10px] text-slate-300 font-medium">Primary Accent</span>
+              </div>
+              <div class="bg-slate-900 p-2 rounded-xl border border-slate-800 flex flex-col items-center gap-1">
+                <input id="secondaryColorInput" type="color" value="#701a75" title="Secondary Color" />
+                <span class="text-[10px] text-slate-300 font-medium">Secondary</span>
+              </div>
+              <div class="bg-slate-900 p-2 rounded-xl border border-slate-800 flex flex-col items-center gap-1">
+                <input id="textColorInput" type="color" value="#ffffff" title="Text Color" />
+                <span class="text-[10px] text-slate-300 font-medium">Text Color</span>
+              </div>
+              <div class="bg-slate-900 p-2 rounded-xl border border-slate-800 flex flex-col items-center gap-1">
+                <input id="bgBaseColorInput" type="color" value="#090418" title="Background Base Color" />
+                <span class="text-[10px] text-slate-300 font-medium">Base Dark</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- PANEL 3: CUSTOM BACKGROUND IMAGE UPLOAD & ADJUSTMENTS           -->
+        <!-- =============================================================== -->
+        <div id="panel-bg" class="left-tab-panel hidden p-4 flex flex-col gap-3.5">
+          <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-sky-400 rounded-xl p-4 text-center bg-slate-900/50 transition cursor-pointer">
+            <input id="bgImageInput" type="file" accept="image/*" class="hidden" />
+            <i class="fa-solid fa-cloud-arrow-up text-2xl text-sky-400 mb-1"></i>
+            <p class="text-xs font-semibold text-white">Drop Custom Background Image or Click to Browse</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Auto-crops 1:1 to 600×600 square canvas</p>
+          </div>
+
+          <div class="flex items-center justify-between gap-2">
+            <span id="customImgStatus" class="text-[11px] text-slate-400">Using procedural genre stage</span>
+            <button id="removeCustomImageBtn" type="button" class="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 text-xs font-semibold transition disabled:opacity-40 cursor-pointer" disabled>
+              Remove Custom Image
+            </button>
+          </div>
+
+          <div class="space-y-3 border-t border-slate-800 pt-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300 font-medium">Genre Color Tint Opacity (0% = Pure Photo)</span>
+                <span id="imgTintVal" class="font-mono text-sky-400">0%</span>
+              </div>
+              <input id="imgTintSlider" type="range" min="0" max="100" value="0" />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-400">Zoom (100% to 300%)</span>
+                <span id="imgZoomVal" class="font-mono text-sky-400">100%</span>
+              </div>
+              <input id="imgZoomSlider" type="range" min="100" max="300" value="100" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-400">Horizontal Pan</span>
+                  <span id="imgPanXVal" class="font-mono text-sky-400">0</span>
+                </div>
+                <input id="imgPanXSlider" type="range" min="-300" max="300" value="0" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-400">Vertical Pan</span>
+                  <span id="imgPanYVal" class="font-mono text-sky-400">0</span>
+                </div>
+                <input id="imgPanYSlider" type="range" min="-300" max="300" value="0" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-400">Brightness</span>
+                  <span id="imgBrightVal" class="font-mono text-sky-400">100%</span>
+                </div>
+                <input id="imgBrightSlider" type="range" min="25" max="200" value="100" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-400">Contrast</span>
+                  <span id="imgContrastVal" class="font-mono text-sky-400">100%</span>
+                </div>
+                <input id="imgContrastSlider" type="range" min="25" max="200" value="100" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- COLUMN 2: CENTER STAGE (Interactive 600x600 Canvas & Export Toolbar)  -->
+    <!-- ===================================================================== -->
+    <section class="lg:col-span-4 flex flex-col items-center">
+      <div class="w-full bg-[#131722] border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col items-center">
+        <!-- Stage Header -->
+        <div class="w-full flex items-center justify-between text-xs text-slate-400 mb-3">
+          <span class="flex items-center gap-2 font-semibold text-slate-200">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+            <span>Interactive 600×600 Canvas</span>
+          </span>
+          <div class="flex items-center gap-3">
+            <span id="seedDisplay" class="font-mono text-[11px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">SEED #8084</span>
+            <button id="resetCenterBtn" type="button" class="text-xs font-semibold text-sky-400 hover:text-sky-300 underline cursor-pointer">
+              Reset Center
+            </button>
+          </div>
+        </div>
+
+        <!-- Pure Unobstructed 600x600 Canvas Stage -->
+        <div class="canvas-stage w-full max-w-[600px] rounded-xl p-1.5 border border-slate-700">
+          <canvas id="coverCanvas" width="600" height="600" class="rounded-lg"></canvas>
+        </div>
+
+        <!-- Stage Status & Filename Bar -->
+        <div class="w-full mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+          <span><i class="fa-solid fa-arrows-up-down-left-right text-sky-400 mr-1"></i>Drag directly on canvas to move 3D focal point / pan photo</span>
+          <span id="filenamePreview" class="font-mono text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 truncate max-w-[230px]">dj-blackeye-zugzwang-600x600.png</span>
+        </div>
+
+        <!-- Direct Export Toolbar -->
+        <div class="w-full mt-4 pt-3.5 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button id="download600Btn" type="button" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+            <i class="fa-solid fa-download"></i>
+            <span>Download 600×600 PNG</span>
+          </button>
+          <button id="download1800Btn" type="button" class="py-2.5 px-3 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/40 text-indigo-200 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+            <i class="fa-solid fa-expand"></i>
+            <span>Download 1800×1800 Hi-Res PNG</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- COLUMN 3: RIGHT SIDEBAR PANEL (Sleeve & Copy Credits Box + Seed/Reset)-->
+    <!-- ===================================================================== -->
+    <section class="lg:col-span-4 flex flex-col gap-4">
+
+      <!-- Dedicated Sleeve & Copy Credits Box -->
+      <div class="bg-[#131722] border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-pen-nib text-amber-400"></i>
+            <span>Sleeve &amp; Copy Credits</span>
+          </h2>
+          <button id="swapCaseBtn" type="button" class="text-[11px] font-semibold text-sky-400 hover:text-sky-300 bg-sky-500/10 px-2.5 py-1 rounded-md border border-sky-500/25 transition cursor-pointer">
+            UPPER / Title Case
+          </button>
+        </div>
+
+        <!-- 1. Song Title Input + Show/Hide Toggle -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="songTitleInput" class="text-xs font-semibold text-slate-300">Song Title</label>
+            <button id="toggleTitleVisBtn" type="button" class="vis-btn px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <i class="fa-solid fa-eye"></i>
+              <span>Visible</span>
+            </button>
+          </div>
+          <input id="songTitleInput" type="text" value="ZUGZWANG" placeholder="Enter song title..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm focus:outline-none focus:border-sky-400 transition" />
+        </div>
+
+        <!-- 2. Artist / Producer Name Input + Show/Hide Toggle -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="artistNameInput" class="text-xs font-semibold text-slate-300">Artist / Producer Name</label>
+            <button id="toggleArtistVisBtn" type="button" class="vis-btn px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <i class="fa-solid fa-eye"></i>
+              <span>Visible</span>
+            </button>
+          </div>
+          <input id="artistNameInput" type="text" value="DJ BLACKEYE" placeholder="Enter artist or producer name..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-sky-400 transition" />
+        </div>
+
+        <!-- 3. Subtitle / Credits / Catalog # Input + Show/Hide Toggle + Left/Center/Right Alignment -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="subtitleInput" class="text-xs font-semibold text-slate-300">Subtitle / Credits / Catalog #</label>
+            <button id="toggleSubtitleVisBtn" type="button" class="vis-btn px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer">
+              <i class="fa-solid fa-eye"></i>
+              <span>Visible</span>
+            </button>
+          </div>
+          <input id="subtitleInput" type="text" value="ORIGINAL MIX • CAT# BLK-088" placeholder="Enter mix credits or catalog number..." class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-xs font-medium focus:outline-none focus:border-sky-400 transition mb-2.5" />
+
+          <!-- Subtitle Alignment Selector Buttons -->
+          <div class="flex items-center justify-between bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+            <span class="text-[11px] font-medium text-slate-400">Credits Alignment</span>
+            <div class="flex items-center gap-1">
+              <button type="button" data-sub-align="left" class="align-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium transition cursor-pointer">
+                <i class="fa-solid fa-align-left mr-1"></i>Left
+              </button>
+              <button type="button" data-sub-align="center" class="align-btn active px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium transition cursor-pointer">
+                <i class="fa-solid fa-align-center mr-1"></i>Center
+              </button>
+              <button type="button" data-sub-align="right" class="align-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium transition cursor-pointer">
+                <i class="fa-solid fa-align-right mr-1"></i>Right
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Preset Reset & Randomize Seed Actions -->
+        <div class="border-t border-slate-800 pt-3.5 grid grid-cols-2 gap-2.5">
+          <button id="rightRandomSeedBtn" type="button" class="py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+            <i class="fa-solid fa-dice"></i>
+            <span>Randomize Seed</span>
+          </button>
+          <button id="rightResetPresetBtn" type="button" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+            <i class="fa-solid fa-rotate-left text-sky-400"></i>
+            <span>Reset Active Preset</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Sidebar Quick-Access Typography & Overlay Strip (Always visible convenience) -->
+      <div class="bg-[#131722] border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-sky-400"></i>
+            <span>Quick Layer &amp; Overlay Switches</span>
+          </h3>
+          <span class="text-[11px] text-slate-400">Instant Toggle</span>
+        </div>
+
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Need a clean cover without the central emblem or surface textures? Toggle layers directly below or use the <strong class="text-slate-200">Overlays &amp; FX</strong> tab on the left.
+        </p>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button id="quickToggleCenterpieceBtn" type="button" class="py-2 px-3 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer">
+            <i class="fa-solid fa-cube"></i>
+            <span id="quickCenterpieceLabel">Centerpiece: ON</span>
+          </button>
+          <button id="quickClearOverlaysBtn" type="button" class="py-2 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer">
+            <i class="fa-solid fa-ban"></i>
+            <span>Remove All Overlays</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const BASE_SIZE = 600;
+      const canvas = document.getElementById('coverCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Null-safe DOM helper so no missing element can ever halt execution
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function on(id, eventName, handler) {
+        const el = byId(id);
+        if (el) {
+          el.addEventListener(eventName, handler);
+        }
+      }
+
+      // Deterministic Seeded PRNG (Mulberry32)
+      function createPRNG(seed) {
+        let a = seed >>> 0;
+        return function () {
+          let t = (a += 0x6D2B79F5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      const state = {
+        preset: 'synthpop',
+        seed: 8084,
+        focalOffsetX: 0,
+        focalOffsetY: 0,
+
+        // Sleeve & Copy Credits (Right Sidebar)
+        title: 'ZUGZWANG',
+        artist: 'DJ BLACKEYE',
+        subtitle: 'ORIGINAL MIX • CAT# BLK-088',
+        showTitle: true,
+        showArtist: true,
+        showSubtitle: true,
+        subtitleAlign: 'center',
+
+        // Typography & Layout
+        fontFamily: 'Orbitron',
+        layout: 'split',
+        titleSize: 68,
+        artistSize: 24,
+        tracking: 4,
+        textYOffset: 0,
+        textGlow: 55,
+        textBackdrop: true,
+
+        // Color Palette
+        primaryAccentColor: '#22d3ee',
+        secondaryColor: '#701a75',
+        textColor: '#ffffff',
+        bgBaseColor: '#090418',
+
+        // Custom Background Photo
+        uploadedImage: null,
+        imgZoom: 100,
+        imgPanX: 0,
+        imgPanY: 0,
+        imgBright: 100,
+        imgContrast: 100,
+        imgTint: 0,
+
+        // Finishing Overlays & Stamps
+        fxCenterpiece: true,
+        fxVinyl: false,
+        fxGrain: true,
+        fxScanlines: true,
+        fxVignette: true,
+        fxBorder: true,
+        fxIntensity: 55,
+        badgeStyle: 'hires',
+        badgeCorner: 'br'
+      };
+
+      const GENRE_PRESETS = {
+        synthpop: {
+          label: '80s Synth-Pop',
+          fontFamily: 'Orbitron',
+          layout: 'split',
+          titleSize: 68,
+          artistSize: 24,
+          tracking: 4,
+          textYOffset: 0,
+          textGlow: 60,
+          textBackdrop: true,
+          primaryAccentColor: '#22d3ee',
+          secondaryColor: '#701a75',
+          textColor: '#ffffff',
+          bgBaseColor: '#090418',
+          fxCenterpiece: true,
+          fxVinyl: false,
+          fxGrain: true,
+          fxScanlines: true,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 55,
+          badgeStyle: 'hires',
+          badgeCorner: 'br'
+        },
+        silentfilm: {
+          label: '1900s Silent Monochrome',
+          fontFamily: 'Playfair Display',
+          layout: 'classic',
+          titleSize: 56,
+          artistSize: 22,
+          tracking: 3,
+          textYOffset: 0,
+          textGlow: 25,
+          textBackdrop: true,
+          primaryAccentColor: '#d6bfa3',
+          secondaryColor: '#363028',
+          textColor: '#f5ebd6',
+          bgBaseColor: '#141210',
+          fxCenterpiece: true,
+          fxVinyl: true,
+          fxGrain: true,
+          fxScanlines: false,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 75,
+          badgeStyle: 'limited',
+          badgeCorner: 'br'
+        },
+        happyhardcore: {
+          label: 'UK Happy Hardcore',
+          fontFamily: 'Anton',
+          layout: 'diagonal',
+          titleSize: 82,
+          artistSize: 28,
+          tracking: 3,
+          textYOffset: 0,
+          textGlow: 70,
+          textBackdrop: true,
+          primaryAccentColor: '#00f5d4',
+          secondaryColor: '#db2777',
+          textColor: '#fde047',
+          bgBaseColor: '#0f172a',
+          fxCenterpiece: true,
+          fxVinyl: false,
+          fxGrain: false,
+          fxScanlines: true,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 50,
+          badgeStyle: 'djpromo',
+          badgeCorner: 'tr'
+        },
+        classical: {
+          label: 'Classical Symphony',
+          fontFamily: 'Cinzel',
+          layout: 'classic',
+          titleSize: 52,
+          artistSize: 20,
+          tracking: 6,
+          textYOffset: 0,
+          textGlow: 35,
+          textBackdrop: true,
+          primaryAccentColor: '#eab308',
+          secondaryColor: '#27171c',
+          textColor: '#fef3c7',
+          bgBaseColor: '#08090f',
+          fxCenterpiece: true,
+          fxVinyl: true,
+          fxGrain: true,
+          fxScanlines: false,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 45,
+          badgeStyle: 'hires',
+          badgeCorner: 'bl'
+        },
+        underground: {
+          label: 'Underground Club',
+          fontFamily: 'Space Grotesk',
+          layout: 'editorial',
+          titleSize: 70,
+          artistSize: 24,
+          tracking: 2,
+          textYOffset: 0,
+          textGlow: 50,
+          textBackdrop: true,
+          primaryAccentColor: '#10b981',
+          secondaryColor: '#111827',
+          textColor: '#f8fafc',
+          bgBaseColor: '#05070a',
+          fxCenterpiece: true,
+          fxVinyl: true,
+          fxGrain: true,
+          fxScanlines: true,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 65,
+          badgeStyle: 'djpromo',
+          badgeCorner: 'br'
+        },
+        ballad: {
+          label: 'Ballad (Piano Songs)',
+          fontFamily: 'Cormorant Garamond',
+          layout: 'center',
+          titleSize: 66,
+          artistSize: 22,
+          tracking: 5,
+          textYOffset: 8,
+          textGlow: 40,
+          textBackdrop: true,
+          primaryAccentColor: '#fcd34d',
+          secondaryColor: '#1e293b',
+          textColor: '#fffbeb',
+          bgBaseColor: '#090d16',
+          fxCenterpiece: true,
+          fxVinyl: true,
+          fxGrain: true,
+          fxScanlines: false,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 45,
+          badgeStyle: 'hires',
+          badgeCorner: 'bl'
+        },
+        dnb: {
+          label: 'Drum and Bass',
+          fontFamily: 'Chakra Petch',
+          layout: 'editorial',
+          titleSize: 74,
+          artistSize: 25,
+          tracking: 4,
+          textYOffset: 0,
+          textGlow: 75,
+          textBackdrop: true,
+          primaryAccentColor: '#a3e635',
+          secondaryColor: '#064e3b',
+          textColor: '#f8fafc',
+          bgBaseColor: '#040806',
+          fxCenterpiece: true,
+          fxVinyl: false,
+          fxGrain: true,
+          fxScanlines: true,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 60,
+          badgeStyle: 'djpromo',
+          badgeCorner: 'tr'
+        },
+        hiphop: {
+          label: 'Hip Hop',
+          fontFamily: 'Archivo Black',
+          layout: 'split',
+          titleSize: 72,
+          artistSize: 26,
+          tracking: 2,
+          textYOffset: 0,
+          textGlow: 55,
+          textBackdrop: true,
+          primaryAccentColor: '#facc15',
+          secondaryColor: '#7f1d1d',
+          textColor: '#ffffff',
+          bgBaseColor: '#0c0a09',
+          fxCenterpiece: true,
+          fxVinyl: true,
+          fxGrain: true,
+          fxScanlines: false,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 70,
+          badgeStyle: 'explicit',
+          badgeCorner: 'br'
+        },
+        rnb: {
+          label: 'R&B',
+          fontFamily: 'Syne',
+          layout: 'editorial',
+          titleSize: 64,
+          artistSize: 22,
+          tracking: 3,
+          textYOffset: 0,
+          textGlow: 60,
+          textBackdrop: true,
+          primaryAccentColor: '#fda4af',
+          secondaryColor: '#701a46',
+          textColor: '#fff1f2',
+          bgBaseColor: '#12071c',
+          fxCenterpiece: true,
+          fxVinyl: true,
+          fxGrain: true,
+          fxScanlines: false,
+          fxVignette: true,
+          fxBorder: true,
+          fxIntensity: 45,
+          badgeStyle: 'limited',
+          badgeCorner: 'tr'
+        }
+      };
+
+      let cachedGrainCanvas = null;
+      let cachedGrainSeed = null;
+
+      function getGrainCanvas(seed) {
+        if (cachedGrainCanvas && cachedGrainSeed === seed) {
+          return cachedGrainCanvas;
+        }
+        const gCanvas = document.createElement('canvas');
+        gCanvas.width = 180;
+        gCanvas.height = 180;
+        const gCtx = gCanvas.getContext('2d');
+        const imgData = gCtx.createImageData(180, 180);
+        const data = imgData.data;
+        const rand = createPRNG(seed + 777);
+        for (let i = 0; i < data.length; i += 4) {
+          const v = Math.floor(rand() * 255);
+          data[i] = v;
+          data[i + 1] = v;
+          data[i + 2] = v;
+          data[i + 3] = 40;
+        }
+        gCtx.putImageData(imgData, 0, 0);
+        cachedGrainCanvas = gCanvas;
+        cachedGrainSeed = seed;
+        return gCanvas;
+      }
+
+      function hexToRgba(hex, alpha) {
+        const clean = (hex || '#ffffff').replace('#', '');
+        const full = clean.length === 3
+          ? clean.split('').map(c => c + c).join('')
+          : clean.padEnd(6, '0');
+        const num = parseInt(full, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function drawSynthPopStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.55;
+        const horizonY = 335 + state.focalOffsetY * 0.4;
+
+        // Upper sky gradient
+        const skyGrad = targetCtx.createLinearGradient(0, 0, 0, horizonY);
+        skyGrad.addColorStop(0, state.bgBaseColor);
+        skyGrad.addColorStop(0.65, state.secondaryColor);
+        skyGrad.addColorStop(1, hexToRgba(state.primaryAccentColor, 0.72));
+        targetCtx.fillStyle = skyGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, horizonY);
+
+        // Starfield
+        targetCtx.fillStyle = '#ffffff';
+        for (let i = 0; i < 65; i++) {
+          const sx = rand() * BASE_SIZE;
+          const sy = rand() * Math.max(20, horizonY - 25);
+          const sr = rand() * 1.7 + 0.4;
+          targetCtx.globalAlpha = rand() * 0.8 + 0.2;
+          targetCtx.beginPath();
+          targetCtx.arc(sx, sy, sr, 0, Math.PI * 2);
+          targetCtx.fill();
+        }
+        targetCtx.globalAlpha = 1;
+
+        // Lower 3D Perspective Grid Plane
+        const groundGrad = targetCtx.createLinearGradient(0, horizonY, 0, BASE_SIZE);
+        groundGrad.addColorStop(0, '#140626');
+        groundGrad.addColorStop(1, state.bgBaseColor);
+        targetCtx.fillStyle = groundGrad;
+        targetCtx.fillRect(0, horizonY, BASE_SIZE, BASE_SIZE - horizonY);
+
+        targetCtx.save();
+        targetCtx.beginPath();
+        targetCtx.rect(0, horizonY, BASE_SIZE, BASE_SIZE - horizonY);
+        targetCtx.clip();
+
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.75);
+        targetCtx.lineWidth = 1.5;
+
+        for (let i = -22; i <= 22; i++) {
+          targetCtx.beginPath();
+          targetCtx.moveTo(cx + i * 12, horizonY);
+          targetCtx.lineTo(cx + i * 105, BASE_SIZE);
+          targetCtx.stroke();
+        }
+
+        for (let j = 1; j <= 14; j++) {
+          const t = Math.pow(j / 14, 2.05);
+          const ly = horizonY + t * (BASE_SIZE - horizonY);
+          targetCtx.beginPath();
+          targetCtx.moveTo(0, ly);
+          targetCtx.lineTo(BASE_SIZE, ly);
+          targetCtx.stroke();
+        }
+        targetCtx.restore();
+
+        // Horizon glow beam
+        const glowGrad = targetCtx.createLinearGradient(0, horizonY - 9, 0, horizonY + 9);
+        glowGrad.addColorStop(0, 'rgba(255,255,255,0)');
+        glowGrad.addColorStop(0.5, state.primaryAccentColor);
+        glowGrad.addColorStop(1, 'rgba(255,255,255,0)');
+        targetCtx.fillStyle = glowGrad;
+        targetCtx.fillRect(0, horizonY - 9, BASE_SIZE, 18);
+
+        if (!drawCenterpiece) return;
+
+        // Segmented Synth Sun Disc + 3D Chess Monolith Centerpiece
+        const sunRadius = 112;
+        const sunY = horizonY - 26;
+        targetCtx.save();
+        targetCtx.beginPath();
+        targetCtx.arc(cx, sunY, sunRadius, 0, Math.PI * 2);
+        targetCtx.clip();
+
+        const sunGrad = targetCtx.createLinearGradient(cx, sunY - sunRadius, cx, sunY + sunRadius);
+        sunGrad.addColorStop(0, '#fde047');
+        sunGrad.addColorStop(0.55, '#f97316');
+        sunGrad.addColorStop(1, '#ec4899');
+        targetCtx.fillStyle = sunGrad;
+        targetCtx.fillRect(cx - sunRadius, sunY - sunRadius, sunRadius * 2, sunRadius * 2);
+
+        targetCtx.fillStyle = state.bgBaseColor;
+        for (let slice = 0; slice < 7; slice++) {
+          const sy = sunY + 10 + slice * 15;
+          const sh = 2.5 + slice * 1.6;
+          targetCtx.fillRect(cx - sunRadius, sy, sunRadius * 2, sh);
+        }
+        targetCtx.restore();
+
+        // 3D Geometric Chess Monolith
+        targetCtx.save();
+        targetCtx.translate(cx, horizonY - 46);
+        targetCtx.rotate((rand() - 0.5) * 0.2);
+        targetCtx.fillStyle = hexToRgba(state.bgBaseColor, 0.85);
+        targetCtx.strokeStyle = state.textColor;
+        targetCtx.lineWidth = 2.2;
+
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, -96);
+        targetCtx.lineTo(66, 0);
+        targetCtx.lineTo(0, 96);
+        targetCtx.lineTo(-66, 0);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+
+        targetCtx.strokeStyle = state.primaryAccentColor;
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, -96);
+        targetCtx.lineTo(18, 0);
+        targetCtx.lineTo(0, 96);
+        targetCtx.moveTo(-66, 0);
+        targetCtx.lineTo(66, 0);
+        targetCtx.stroke();
+        targetCtx.restore();
+      }
+
+      function drawSilentFilmStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.45;
+        const cy = 300 + state.focalOffsetY * 0.45;
+
+        const radGrad = targetCtx.createRadialGradient(cx, cy, 20, 300, 300, 420);
+        radGrad.addColorStop(0, state.secondaryColor);
+        radGrad.addColorStop(1, state.bgBaseColor);
+        targetCtx.fillStyle = radGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Vintage silver-nitrate stage beams
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        const rayCount = 36;
+        for (let i = 0; i < rayCount; i += 2) {
+          const a1 = (i / rayCount) * Math.PI * 2;
+          const a2 = ((i + 0.65) / rayCount) * Math.PI * 2;
+          targetCtx.beginPath();
+          targetCtx.moveTo(0, 0);
+          targetCtx.arc(0, 0, 500, a1, a2);
+          targetCtx.closePath();
+          targetCtx.fillStyle = hexToRgba(state.primaryAccentColor, 0.06);
+          targetCtx.fill();
+        }
+        targetCtx.restore();
+
+        // Vertical celluloid film lines
+        targetCtx.save();
+        for (let s = 0; s < 7; s++) {
+          const sx = rand() * BASE_SIZE;
+          targetCtx.strokeStyle = hexToRgba(state.textColor, rand() * 0.2 + 0.05);
+          targetCtx.lineWidth = rand() * 1.3 + 0.4;
+          targetCtx.beginPath();
+          targetCtx.moveTo(sx, 0);
+          targetCtx.lineTo(sx + (rand() - 0.5) * 14, BASE_SIZE);
+          targetCtx.stroke();
+        }
+        targetCtx.restore();
+
+        if (!drawCenterpiece) return;
+
+        // Ornamental Guilloche Rosette Centerpiece
+        targetCtx.save();
+        targetCtx.translate(cx, cy - 20);
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.42);
+        targetCtx.lineWidth = 1.2;
+        const petals = 14;
+        const baseR = 104;
+        targetCtx.beginPath();
+        for (let deg = 0; deg <= 360; deg++) {
+          const rad = (deg * Math.PI) / 180;
+          const r = baseR + 38 * Math.cos(petals * rad);
+          const x = r * Math.cos(rad);
+          const y = r * Math.sin(rad);
+          if (deg === 0) targetCtx.moveTo(x, y);
+          else targetCtx.lineTo(x, y);
+        }
+        targetCtx.closePath();
+        targetCtx.stroke();
+
+        [54, 144, 154].forEach((radius, idx) => {
+          targetCtx.beginPath();
+          targetCtx.setLineDash(idx === 1 ? [5, 5] : []);
+          targetCtx.arc(0, 0, radius, 0, Math.PI * 2);
+          targetCtx.stroke();
+        });
+        targetCtx.restore();
+      }
+
+      function drawHappyHardcoreStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.55;
+        const cy = 300 + state.focalOffsetY * 0.55;
+
+        const bgGrad = targetCtx.createLinearGradient(0, 0, BASE_SIZE, BASE_SIZE);
+        bgGrad.addColorStop(0, state.bgBaseColor);
+        bgGrad.addColorStop(0.5, state.secondaryColor);
+        bgGrad.addColorStop(1, state.bgBaseColor);
+        targetCtx.fillStyle = bgGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Rave sunburst beams
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        const wedges = 28;
+        const rotOffset = rand() * Math.PI;
+        for (let i = 0; i < wedges; i++) {
+          const startA = rotOffset + (i * Math.PI * 2) / wedges;
+          const endA = rotOffset + ((i + 0.5) * Math.PI * 2) / wedges;
+          targetCtx.beginPath();
+          targetCtx.moveTo(0, 0);
+          targetCtx.arc(0, 0, 560, startA, endA);
+          targetCtx.closePath();
+          targetCtx.fillStyle = i % 2 === 0
+            ? hexToRgba(state.primaryAccentColor, 0.26)
+            : hexToRgba(state.textColor, 0.14);
+          targetCtx.fill();
+        }
+        targetCtx.restore();
+
+        if (!drawCenterpiece) return;
+
+        // High-energy oscillating rave rings & starbursts
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        for (let r = 1; r <= 4; r++) {
+          const baseRadius = r * 54;
+          const freq = 14 + r * 4;
+          const amp = 8 + rand() * 8;
+          targetCtx.beginPath();
+          for (let a = 0; a <= 360; a += 2) {
+            const rad = (a * Math.PI) / 180;
+            const radius = baseRadius + Math.sin(rad * freq + rand() * 5) * amp;
+            const x = Math.cos(rad) * radius;
+            const y = Math.sin(rad) * radius;
+            if (a === 0) targetCtx.moveTo(x, y);
+            else targetCtx.lineTo(x, y);
+          }
+          targetCtx.closePath();
+          targetCtx.strokeStyle = r % 2 === 0 ? state.textColor : state.primaryAccentColor;
+          targetCtx.lineWidth = 2.6;
+          targetCtx.stroke();
+        }
+        targetCtx.restore();
+      }
+
+      function drawClassicalStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.45;
+        const cy = 270 + state.focalOffsetY * 0.45;
+
+        const bgGrad = targetCtx.createRadialGradient(cx, cy, 15, 300, 300, 430);
+        bgGrad.addColorStop(0, state.secondaryColor);
+        bgGrad.addColorStop(1, state.bgBaseColor);
+        targetCtx.fillStyle = bgGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Subtle gold staff lines across background
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.14);
+        targetCtx.lineWidth = 1;
+        for (let i = -2; i <= 2; i++) {
+          const y = cy + i * 12;
+          targetCtx.beginPath();
+          targetCtx.moveTo(36, y);
+          targetCtx.lineTo(BASE_SIZE - 36, y);
+          targetCtx.stroke();
+        }
+
+        if (!drawCenterpiece) return;
+
+        // Minimalist Gold-Leaf Lissajous Harmonic Wave Centerpiece
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        const freqA = 3 + Math.floor(rand() * 2);
+        const freqB = 4 + Math.floor(rand() * 2);
+        const delta = rand() * Math.PI;
+        const layers = 24;
+
+        for (let l = 0; l < layers; l++) {
+          const phase = delta + l * 0.045;
+          const scale = 165 - l * 2.1;
+          targetCtx.beginPath();
+          for (let t = 0; t <= Math.PI * 2; t += 0.02) {
+            const x = Math.sin(freqA * t + phase) * scale;
+            const y = Math.sin(freqB * t) * scale;
+            if (t === 0) targetCtx.moveTo(x, y);
+            else targetCtx.lineTo(x, y);
+          }
+          targetCtx.closePath();
+          const alpha = 0.14 + (1 - l / layers) * 0.48;
+          targetCtx.strokeStyle = l === 0 ? state.textColor : hexToRgba(state.primaryAccentColor, alpha);
+          targetCtx.lineWidth = l === 0 ? 1.8 : 0.9;
+          targetCtx.stroke();
+        }
+
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.45);
+        targetCtx.lineWidth = 1.4;
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, 190, 0, Math.PI * 2);
+        targetCtx.stroke();
+        targetCtx.restore();
+      }
+
+      function drawUndergroundStage(targetCtx, rand, drawCenterpiece) {
+        const focalX = 300 + state.focalOffsetX * 0.6;
+        const focalY = 290 + state.focalOffsetY * 0.6;
+
+        targetCtx.fillStyle = state.bgBaseColor;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Minimal tech grid
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.1);
+        targetCtx.lineWidth = 1;
+        for (let g = 0; g <= BASE_SIZE; g += 40) {
+          targetCtx.beginPath();
+          targetCtx.moveTo(g, 0);
+          targetCtx.lineTo(g, BASE_SIZE);
+          targetCtx.moveTo(0, g);
+          targetCtx.lineTo(BASE_SIZE, g);
+          targetCtx.stroke();
+        }
+
+        // Warehouse industrial laser beams
+        for (let b = 0; b < 4; b++) {
+          const srcX = 90 + b * 140 + (rand() - 0.5) * 40;
+          const dstX = focalX + (b - 1.5) * 120;
+          const beamGrad = targetCtx.createLinearGradient(srcX, 0, dstX, BASE_SIZE);
+          beamGrad.addColorStop(0, hexToRgba(state.primaryAccentColor, 0.48));
+          beamGrad.addColorStop(0.65, hexToRgba(state.secondaryColor, 0.3));
+          beamGrad.addColorStop(1, 'rgba(0,0,0,0)');
+
+          targetCtx.fillStyle = beamGrad;
+          targetCtx.beginPath();
+          targetCtx.moveTo(srcX - 12, 0);
+          targetCtx.lineTo(srcX + 12, 0);
+          targetCtx.lineTo(dstX + 135, BASE_SIZE);
+          targetCtx.lineTo(dstX - 135, BASE_SIZE);
+          targetCtx.closePath();
+          targetCtx.fill();
+        }
+
+        if (!drawCenterpiece) return;
+
+        // Brutalist sound-system geometric reticle centerpiece
+        targetCtx.save();
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.72);
+        targetCtx.lineWidth = 2;
+        targetCtx.beginPath();
+        targetCtx.arc(focalX, focalY, 128, 0, Math.PI * 2);
+        targetCtx.stroke();
+
+        targetCtx.strokeStyle = hexToRgba(state.textColor, 0.4);
+        targetCtx.lineWidth = 1.4;
+        targetCtx.strokeRect(focalX - 90, focalY - 90, 180, 180);
+        targetCtx.beginPath();
+        targetCtx.moveTo(focalX - 165, focalY);
+        targetCtx.lineTo(focalX + 165, focalY);
+        targetCtx.moveTo(focalX, focalY - 165);
+        targetCtx.lineTo(focalX, focalY + 165);
+        targetCtx.stroke();
+        targetCtx.restore();
+      }
+
+      function drawBalladStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.45;
+        const horizonY = 390 + state.focalOffsetY * 0.35;
+
+        // Warm acoustic spotlight gradient
+        const bgGrad = targetCtx.createRadialGradient(cx, horizonY - 130, 20, 300, 300, 440);
+        bgGrad.addColorStop(0, hexToRgba(state.primaryAccentColor, 0.42));
+        bgGrad.addColorStop(0.48, state.secondaryColor);
+        bgGrad.addColorStop(1, state.bgBaseColor);
+        targetCtx.fillStyle = bgGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Soft golden dust particles
+        targetCtx.save();
+        for (let b = 0; b < 44; b++) {
+          const bx = rand() * BASE_SIZE;
+          const by = rand() * (horizonY + 30);
+          const br = 2 + Math.pow(rand(), 2) * 24;
+          const alpha = 0.08 + rand() * 0.25;
+          const dustGrad = targetCtx.createRadialGradient(bx, by, 0, bx, by, br);
+          dustGrad.addColorStop(0, hexToRgba(state.primaryAccentColor, alpha * 1.4));
+          dustGrad.addColorStop(1, 'rgba(0,0,0,0)');
+          targetCtx.fillStyle = dustGrad;
+          targetCtx.beginPath();
+          targetCtx.arc(bx, by, br, 0, Math.PI * 2);
+          targetCtx.fill();
+        }
+        targetCtx.restore();
+
+        // Dark polished acoustic floor
+        const floorGrad = targetCtx.createLinearGradient(0, horizonY, 0, BASE_SIZE);
+        floorGrad.addColorStop(0, hexToRgba(state.bgBaseColor, 0.92));
+        floorGrad.addColorStop(1, '#030509');
+        targetCtx.fillStyle = floorGrad;
+        targetCtx.fillRect(0, horizonY, BASE_SIZE, BASE_SIZE - horizonY);
+
+        if (!drawCenterpiece) return;
+
+        // Subtle Grand Piano Key Reflections & Acoustic String Waves
+        targetCtx.save();
+        for (let s = 0; s < 5; s++) {
+          targetCtx.beginPath();
+          const amp = 15 + s * 7;
+          const phase = rand() * Math.PI * 2;
+          for (let x = 45; x <= BASE_SIZE - 45; x += 6) {
+            const norm = (x - 45) / (BASE_SIZE - 90);
+            const env = Math.sin(norm * Math.PI);
+            const y = (horizonY - 70) + Math.sin(norm * Math.PI * (2 + s * 0.5) + phase) * amp * env;
+            if (x === 45) targetCtx.moveTo(x, y);
+            else targetCtx.lineTo(x, y);
+          }
+          targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.18 + (5 - s) * 0.05);
+          targetCtx.lineWidth = s === 0 ? 1.8 : 1;
+          targetCtx.stroke();
+        }
+
+        const keyCount = 21;
+        const spanW = 460;
+        const startX = cx - spanW / 2;
+        const keyW = spanW / keyCount;
+
+        for (let k = 0; k < keyCount; k++) {
+          const kx = startX + k * keyW;
+          targetCtx.fillStyle = hexToRgba(state.textColor, 0.09 + (k % 2) * 0.04);
+          targetCtx.beginPath();
+          targetCtx.moveTo(kx, horizonY);
+          targetCtx.lineTo(kx + keyW - 2, horizonY);
+          targetCtx.lineTo(kx + (keyW - 2) * 1.3 + (kx - cx) * 0.32, horizonY + 88);
+          targetCtx.lineTo(kx + (kx - cx) * 0.32, horizonY + 88);
+          targetCtx.closePath();
+          targetCtx.fill();
+
+          const mod = k % 7;
+          if (mod === 0 || mod === 1 || mod === 3 || mod === 4 || mod === 5) {
+            targetCtx.fillStyle = hexToRgba(state.bgBaseColor, 0.9);
+            targetCtx.beginPath();
+            targetCtx.moveTo(kx + keyW * 0.62, horizonY);
+            targetCtx.lineTo(kx + keyW * 1.15, horizonY);
+            targetCtx.lineTo(kx + keyW * 1.15 + (kx - cx) * 0.2, horizonY + 48);
+            targetCtx.lineTo(kx + keyW * 0.62 + (kx - cx) * 0.2, horizonY + 48);
+            targetCtx.closePath();
+            targetCtx.fill();
+          }
+        }
+        targetCtx.restore();
+      }
+
+      function drawDrumAndBassStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.55;
+        const cy = 285 + state.focalOffsetY * 0.55;
+
+        const bgGrad = targetCtx.createRadialGradient(cx, cy, 15, 300, 300, 430);
+        bgGrad.addColorStop(0, state.secondaryColor);
+        bgGrad.addColorStop(0.65, state.bgBaseColor);
+        bgGrad.addColorStop(1, '#020403');
+        targetCtx.fillStyle = bgGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Dark tech grid
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.08);
+        targetCtx.lineWidth = 1;
+        for (let g = 0; g <= BASE_SIZE; g += 30) {
+          targetCtx.beginPath();
+          targetCtx.moveTo(g, 0);
+          targetCtx.lineTo(g, BASE_SIZE);
+          targetCtx.moveTo(0, g);
+          targetCtx.lineTo(BASE_SIZE, g);
+          targetCtx.stroke();
+        }
+
+        if (!drawCenterpiece) return;
+
+        // Sub-bass frequency shockwaves, angular vector shards & HUD crosshair rings
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        const rings = 9;
+        for (let r = 1; r <= rings; r++) {
+          const baseR = r * 24;
+          const modFreq = 6 + (r % 4) * 3;
+          const phase = rand() * Math.PI * 2;
+          targetCtx.beginPath();
+          for (let deg = 0; deg <= 360; deg += 2) {
+            const rad = (deg * Math.PI) / 180;
+            const warp = Math.sin(rad * modFreq + phase) * (4 + r * 1.7) + Math.cos(rad * 3 - phase) * 4.5;
+            const rr = baseR + warp;
+            const x = Math.cos(rad) * rr;
+            const y = Math.sin(rad) * rr;
+            if (deg === 0) targetCtx.moveTo(x, y);
+            else targetCtx.lineTo(x, y);
+          }
+          targetCtx.closePath();
+          targetCtx.strokeStyle = r % 3 === 0
+            ? hexToRgba(state.textColor, 0.7)
+            : hexToRgba(state.primaryAccentColor, 0.28 + (r / rings) * 0.5);
+          targetCtx.lineWidth = r % 3 === 0 ? 2.2 : 1.2;
+          targetCtx.stroke();
+        }
+
+        // Angular vector shards
+        for (let s = 0; s < 16; s++) {
+          const angle = rand() * Math.PI * 2;
+          const dist1 = 30 + rand() * 85;
+          const dist2 = dist1 + 45 + rand() * 100;
+          targetCtx.beginPath();
+          targetCtx.moveTo(Math.cos(angle) * dist1, Math.sin(angle) * dist1);
+          targetCtx.lineTo(Math.cos(angle + 0.07) * dist2, Math.sin(angle + 0.07) * dist2);
+          targetCtx.lineTo(Math.cos(angle - 0.05) * (dist2 - 24), Math.sin(angle - 0.05) * (dist2 - 24));
+          targetCtx.closePath();
+          targetCtx.fillStyle = s % 2 === 0
+            ? hexToRgba(state.primaryAccentColor, 0.45)
+            : hexToRgba(state.textColor, 0.24);
+          targetCtx.fill();
+        }
+
+        // Technical HUD Crosshair Rings
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.88);
+        targetCtx.lineWidth = 1.6;
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, 190, -0.45, 0.45);
+        targetCtx.stroke();
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, 190, Math.PI - 0.45, Math.PI + 0.45);
+        targetCtx.stroke();
+        targetCtx.restore();
+      }
+
+      function drawHipHopStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.45;
+        const cy = 285 + state.focalOffsetY * 0.45;
+
+        const bgGrad = targetCtx.createLinearGradient(0, 0, BASE_SIZE, BASE_SIZE);
+        bgGrad.addColorStop(0, state.bgBaseColor);
+        bgGrad.addColorStop(0.55, state.secondaryColor);
+        bgGrad.addColorStop(1, state.bgBaseColor);
+        targetCtx.fillStyle = bgGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Gritty street halftone dot texture
+        targetCtx.save();
+        const step = 16;
+        for (let y = step / 2; y < BASE_SIZE; y += step) {
+          for (let x = step / 2; x < BASE_SIZE; x += step) {
+            const dist = Math.hypot(x - cx, y - cy);
+            const norm = Math.max(0, 1 - dist / 390);
+            const r = norm * 5;
+            if (r > 0.7) {
+              targetCtx.fillStyle = hexToRgba(state.primaryAccentColor, 0.22);
+              targetCtx.beginPath();
+              targetCtx.arc(x, y, r, 0, Math.PI * 2);
+              targetCtx.fill();
+            }
+          }
+        }
+        targetCtx.restore();
+
+        if (!drawCenterpiece) return;
+
+        // Octagonal Medallion & Street Crown Centerpiece
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.85);
+        targetCtx.fillStyle = hexToRgba(state.bgBaseColor, 0.85);
+        targetCtx.lineWidth = 4;
+
+        const octR = 144;
+        targetCtx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4 + Math.PI / 8;
+          const ox = Math.cos(a) * octR;
+          const oy = Math.sin(a) * octR;
+          if (i === 0) targetCtx.moveTo(ox, oy);
+          else targetCtx.lineTo(ox, oy);
+        }
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+
+        targetCtx.lineWidth = 1.8;
+        targetCtx.strokeStyle = hexToRgba(state.textColor, 0.5);
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, 118, 0, Math.PI * 2);
+        targetCtx.stroke();
+
+        // Crown centerpiece
+        targetCtx.fillStyle = state.primaryAccentColor;
+        targetCtx.strokeStyle = '#000000';
+        targetCtx.lineWidth = 3;
+        targetCtx.beginPath();
+        targetCtx.moveTo(-66, 40);
+        targetCtx.lineTo(-80, -30);
+        targetCtx.lineTo(-30, 6);
+        targetCtx.lineTo(0, -54);
+        targetCtx.lineTo(30, 6);
+        targetCtx.lineTo(80, -30);
+        targetCtx.lineTo(66, 40);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+
+        targetCtx.fillRect(-66, 46, 132, 13);
+        targetCtx.strokeRect(-66, 46, 132, 13);
+        targetCtx.restore();
+      }
+
+      function drawRnBStage(targetCtx, rand, drawCenterpiece) {
+        const cx = 300 + state.focalOffsetX * 0.45;
+        const cy = 270 + state.focalOffsetY * 0.45;
+
+        const bgGrad = targetCtx.createLinearGradient(0, 0, BASE_SIZE, BASE_SIZE);
+        bgGrad.addColorStop(0, state.bgBaseColor);
+        bgGrad.addColorStop(0.55, state.secondaryColor);
+        bgGrad.addColorStop(1, '#09030f');
+        targetCtx.fillStyle = bgGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Warm ambient rose-gold aura
+        const auraGrad = targetCtx.createRadialGradient(cx, cy, 10, cx, cy, 240);
+        auraGrad.addColorStop(0, hexToRgba(state.primaryAccentColor, 0.5));
+        auraGrad.addColorStop(0.55, hexToRgba(state.secondaryColor, 0.3));
+        auraGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        targetCtx.fillStyle = auraGrad;
+        targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+        // Velvet silk wave contours
+        targetCtx.save();
+        const waveLines = 26;
+        const phaseSeed = rand() * Math.PI * 2;
+        for (let w = 0; w < waveLines; w++) {
+          const yBase = 105 + w * 15;
+          targetCtx.beginPath();
+          for (let x = -20; x <= BASE_SIZE + 20; x += 10) {
+            const nx = x / BASE_SIZE;
+            const y = yBase
+              + Math.sin(nx * Math.PI * 2.2 + phaseSeed + w * 0.14) * 36
+              + Math.cos(nx * Math.PI * 1.1 - w * 0.09) * 20;
+            if (x === -20) targetCtx.moveTo(x, y);
+            else targetCtx.lineTo(x, y);
+          }
+          const alpha = 0.08 + Math.sin((w / waveLines) * Math.PI) * 0.34;
+          targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, alpha);
+          targetCtx.lineWidth = w % 4 === 0 ? 1.6 : 0.9;
+          targetCtx.stroke();
+        }
+        targetCtx.restore();
+
+        if (!drawCenterpiece) return;
+
+        // Warm Eclipse Ring Aura Centerpiece
+        targetCtx.save();
+        targetCtx.translate(cx, cy);
+        const orbR = 86;
+
+        const corona = targetCtx.createRadialGradient(0, 0, orbR * 0.8, 0, 0, orbR * 1.55);
+        corona.addColorStop(0, hexToRgba(state.primaryAccentColor, 0.88));
+        corona.addColorStop(0.45, hexToRgba(state.secondaryColor, 0.38));
+        corona.addColorStop(1, 'rgba(0,0,0,0)');
+        targetCtx.fillStyle = corona;
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, orbR * 1.55, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        targetCtx.fillStyle = state.bgBaseColor;
+        targetCtx.beginPath();
+        targetCtx.arc(-7, -5, orbR, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        targetCtx.strokeStyle = hexToRgba(state.textColor, 0.8);
+        targetCtx.lineWidth = 1.6;
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, orbR + 4, -0.8, 1.35);
+        targetCtx.stroke();
+        targetCtx.restore();
+      }
+
+      function drawUploadedPhotoStage(targetCtx) {
+        const img = state.uploadedImage;
+        if (!img) return;
+
+        targetCtx.save();
+        targetCtx.filter = `brightness(${state.imgBright}%) contrast(${state.imgContrast}%)`;
+
+        // Auto 1:1 square cover crop
+        const imgRatio = img.width / img.height;
+        let drawW = BASE_SIZE;
+        let drawH = BASE_SIZE;
+        if (imgRatio > 1) {
+          drawW = BASE_SIZE * imgRatio;
+        } else {
+          drawH = BASE_SIZE / imgRatio;
+        }
+
+        const zoomFactor = state.imgZoom / 100;
+        drawW *= zoomFactor;
+        drawH *= zoomFactor;
+
+        const drawX = (BASE_SIZE - drawW) / 2 + state.imgPanX;
+        const drawY = (BASE_SIZE - drawH) / 2 + state.imgPanY;
+
+        targetCtx.drawImage(img, drawX, drawY, drawW, drawH);
+        targetCtx.filter = 'none';
+
+        // Optional Genre Color Tint Opacity (0% to 100%)
+        if (state.imgTint > 0) {
+          const tintAlpha = state.imgTint / 100;
+          const tintGrad = targetCtx.createLinearGradient(0, 0, BASE_SIZE, BASE_SIZE);
+          tintGrad.addColorStop(0, hexToRgba(state.bgBaseColor, tintAlpha));
+          tintGrad.addColorStop(1, hexToRgba(state.secondaryColor, tintAlpha));
+          targetCtx.fillStyle = tintGrad;
+          targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+        }
+        targetCtx.restore();
+      }
+
+      function drawSurfaceOverlays(targetCtx, rand) {
+        const intensity = state.fxIntensity / 100;
+
+        // 1. Dark Vignette
+        if (state.fxVignette && intensity > 0) {
+          const vigGrad = targetCtx.createRadialGradient(300, 300, 165, 300, 300, 430);
+          vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+          vigGrad.addColorStop(1, `rgba(0,0,0,${(0.8 * intensity).toFixed(2)})`);
+          targetCtx.fillStyle = vigGrad;
+          targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+        }
+
+        // 2. CRT Scanlines
+        if (state.fxScanlines && intensity > 0) {
+          targetCtx.save();
+          targetCtx.fillStyle = `rgba(0, 0, 0, ${(0.3 * intensity).toFixed(2)})`;
+          for (let y = 0; y < BASE_SIZE; y += 4) {
+            targetCtx.fillRect(0, y, BASE_SIZE, 1.5);
+          }
+          targetCtx.restore();
+        }
+
+        // 3. Film Grain
+        if (state.fxGrain && intensity > 0) {
+          targetCtx.save();
+          targetCtx.globalAlpha = intensity * 0.85;
+          const pattern = targetCtx.createPattern(getGrainCanvas(state.seed), 'repeat');
+          targetCtx.fillStyle = pattern;
+          targetCtx.fillRect(0, 0, BASE_SIZE, BASE_SIZE);
+
+          targetCtx.fillStyle = 'rgba(255,255,255,0.35)';
+          const specks = Math.floor(42 * intensity);
+          for (let d = 0; d < specks; d++) {
+            targetCtx.fillRect(rand() * BASE_SIZE, rand() * BASE_SIZE, rand() * 2, rand() * 2);
+          }
+          targetCtx.restore();
+        }
+
+        // 4. Vinyl Ring Wear
+        if (state.fxVinyl && intensity > 0) {
+          targetCtx.save();
+          targetCtx.translate(300, 300);
+          [276, 280, 284, 96].forEach((rad, rIdx) => {
+            const segs = 90;
+            for (let s = 0; s < segs; s++) {
+              if (rand() > 0.65) continue;
+              const a1 = (s / segs) * Math.PI * 2;
+              const a2 = ((s + rand() * 1.4) / segs) * Math.PI * 2;
+              targetCtx.beginPath();
+              targetCtx.arc(0, 0, rad + (rand() - 0.5) * 3, a1, a2);
+              targetCtx.strokeStyle = `rgba(245, 240, 230, ${(0.25 * intensity * (rIdx === 3 ? 0.5 : 1)).toFixed(3)})`;
+              targetCtx.lineWidth = rand() * 2.4 + 0.6;
+              targetCtx.stroke();
+            }
+          });
+          targetCtx.restore();
+        }
+
+        // 5. Decorative Border Frame
+        if (state.fxBorder) {
+          targetCtx.save();
+          const pad = 18;
+          if (state.preset === 'silentfilm') {
+            targetCtx.strokeStyle = hexToRgba(state.textColor, 0.65);
+            targetCtx.lineWidth = 2.4;
+            targetCtx.strokeRect(pad, pad, BASE_SIZE - pad * 2, BASE_SIZE - pad * 2);
+            targetCtx.lineWidth = 1;
+            targetCtx.strokeRect(pad + 6, pad + 6, BASE_SIZE - (pad + 6) * 2, BASE_SIZE - (pad + 6) * 2);
+            const cSize = 16;
+            [
+              [pad, pad],
+              [BASE_SIZE - pad - cSize, pad],
+              [pad, BASE_SIZE - pad - cSize],
+              [BASE_SIZE - pad - cSize, BASE_SIZE - pad - cSize]
+            ].forEach(([cx, cy]) => targetCtx.strokeRect(cx, cy, cSize, cSize));
+          } else if (state.preset === 'classical') {
+            targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.72);
+            targetCtx.lineWidth = 2;
+            targetCtx.strokeRect(20, 20, BASE_SIZE - 40, BASE_SIZE - 40);
+            targetCtx.lineWidth = 0.9;
+            targetCtx.strokeRect(26, 26, BASE_SIZE - 52, BASE_SIZE - 52);
+          } else {
+            targetCtx.strokeStyle = hexToRgba(state.textColor, 0.52);
+            targetCtx.lineWidth = 1.5;
+            targetCtx.strokeRect(pad, pad, BASE_SIZE - pad * 2, BASE_SIZE - pad * 2);
+          }
+          targetCtx.restore();
+        }
+      }
+
+      function drawTrackedText(targetCtx, text, x, y, tracking, align = 'center', strokeColor = null, strokeWidth = 0) {
+        if (!text) return;
+        const chars = Array.from(text);
+        let totalWidth = 0;
+        const widths = chars.map(ch => {
+          const w = targetCtx.measureText(ch).width;
+          totalWidth += w;
+          return w;
+        });
+        totalWidth += Math.max(0, chars.length - 1) * tracking;
+
+        let startX = x;
+        if (align === 'center') startX = x - totalWidth / 2;
+        else if (align === 'right') startX = x - totalWidth;
+
+        targetCtx.save();
+
+        // Multi-pass outer glow & dark drop contrast backing (zero reliance on banned terms)
+        if (state.textGlow > 0) {
+          const ratio = state.textGlow / 100;
+          const mainFill = targetCtx.fillStyle;
+
+          // Soft outer luminous aura passes
+          const glowPasses = [
+            { width: 14 * ratio, alpha: 0.14 * ratio },
+            { width: 8 * ratio, alpha: 0.26 * ratio },
+            { width: 4 * ratio, alpha: 0.42 * ratio }
+          ];
+          glowPasses.forEach(gp => {
+            if (gp.width < 0.5) return;
+            let gx = startX;
+            targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, gp.alpha);
+            targetCtx.lineWidth = gp.width;
+            targetCtx.lineJoin = 'round';
+            for (let i = 0; i < chars.length; i++) {
+              targetCtx.strokeText(chars[i], gx, y);
+              gx += widths[i] + tracking;
+            }
+          });
+
+          targetCtx.fillStyle = mainFill;
+        }
+
+        // Crisp dark backing stroke + primary glyph fill
+        let cx = startX;
+        for (let i = 0; i < chars.length; i++) {
+          const ch = chars[i];
+          if (strokeColor && strokeWidth > 0) {
+            targetCtx.strokeStyle = strokeColor;
+            targetCtx.lineWidth = strokeWidth;
+            targetCtx.lineJoin = 'round';
+            targetCtx.strokeText(ch, cx, y);
+          }
+          targetCtx.fillText(ch, cx, y);
+          cx += widths[i] + tracking;
+        }
+
+        targetCtx.restore();
+      }
+
+      function drawTypographyLayer(targetCtx) {
+        const title = state.showTitle ? state.title.trim() : '';
+        const artist = state.showArtist ? state.artist.trim() : '';
+        const subtitle = state.showSubtitle ? state.subtitle.trim() : '';
+        const yOff = state.textYOffset;
+
+        if (!title && !artist && !subtitle) return;
+
+        // Calculate subtitle X coordinate from user's Left / Center / Right alignment choice
+        function getSubtitleX(defaultCenter) {
+          if (state.subtitleAlign === 'left') return 54;
+          if (state.subtitleAlign === 'right') return BASE_SIZE - 54;
+          return defaultCenter;
+        }
+
+        targetCtx.save();
+        targetCtx.textBaseline = 'middle';
+
+        if (state.layout === 'split') {
+          if (state.textBackdrop) {
+            if (artist) {
+              const topGrad = targetCtx.createLinearGradient(0, 0, 0, 140);
+              topGrad.addColorStop(0, 'rgba(0,0,0,0.72)');
+              topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+              targetCtx.fillStyle = topGrad;
+              targetCtx.fillRect(0, 0, BASE_SIZE, 140);
+            }
+            if (title || subtitle) {
+              const botGrad = targetCtx.createLinearGradient(0, 415, 0, BASE_SIZE);
+              botGrad.addColorStop(0, 'rgba(0,0,0,0)');
+              botGrad.addColorStop(1, 'rgba(0,0,0,0.84)');
+              targetCtx.fillStyle = botGrad;
+              targetCtx.fillRect(0, 415, BASE_SIZE, 185);
+            }
+          }
+
+          if (artist) {
+            targetCtx.font = `700 ${state.artistSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = state.primaryAccentColor;
+            drawTrackedText(targetCtx, artist, 300, 62 + yOff * 0.35, state.tracking + 2, 'center', 'rgba(0,0,0,0.88)', 4);
+
+            targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.55);
+            targetCtx.lineWidth = 1.5;
+            targetCtx.beginPath();
+            targetCtx.moveTo(210, 88 + yOff * 0.35);
+            targetCtx.lineTo(390, 88 + yOff * 0.35);
+            targetCtx.stroke();
+          }
+
+          if (title) {
+            targetCtx.font = `900 ${state.titleSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = hexToRgba(state.secondaryColor, 0.92);
+            drawTrackedText(targetCtx, title, 303, 501 + yOff, state.tracking, 'center');
+            targetCtx.fillStyle = state.textColor;
+            drawTrackedText(targetCtx, title, 300, 498 + yOff, state.tracking, 'center', 'rgba(0,0,0,0.9)', 6);
+          }
+
+          if (subtitle) {
+            targetCtx.font = '600 12px "Inter", sans-serif';
+            targetCtx.fillStyle = hexToRgba(state.textColor, 0.86);
+            const sx = getSubtitleX(300);
+            drawTrackedText(targetCtx, subtitle, sx, 548 + yOff, 3, state.subtitleAlign, 'rgba(0,0,0,0.85)', 3);
+          }
+
+        } else if (state.layout === 'center') {
+          const centerY = 300 + yOff;
+          if (state.textBackdrop) {
+            targetCtx.fillStyle = 'rgba(8, 10, 16, 0.72)';
+            targetCtx.strokeStyle = hexToRgba(state.primaryAccentColor, 0.48);
+            targetCtx.lineWidth = 1.5;
+            targetCtx.fillRect(46, centerY - 94, BASE_SIZE - 92, 188);
+            targetCtx.strokeRect(46, centerY - 94, BASE_SIZE - 92, 188);
+          }
+
+          if (artist) {
+            targetCtx.font = `700 ${state.artistSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = state.primaryAccentColor;
+            drawTrackedText(targetCtx, artist, 300, centerY - 50, state.tracking + 2, 'center', 'rgba(0,0,0,0.85)', 4);
+          }
+
+          if (title) {
+            targetCtx.font = `900 ${state.titleSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = state.textColor;
+            drawTrackedText(targetCtx, title, 300, centerY + 8, state.tracking, 'center', 'rgba(0,0,0,0.9)', 5);
+          }
+
+          if (subtitle) {
+            targetCtx.font = '600 12px "Inter", sans-serif';
+            targetCtx.fillStyle = hexToRgba(state.textColor, 0.85);
+            const sx = getSubtitleX(300);
+            drawTrackedText(targetCtx, subtitle, sx, centerY + 62, 3.2, state.subtitleAlign, 'rgba(0,0,0,0.85)', 3);
+          }
+
+        } else if (state.layout === 'editorial') {
+          const baseY = 475 + yOff;
+          if (state.textBackdrop) {
+            const edGrad = targetCtx.createLinearGradient(0, baseY - 125, 0, BASE_SIZE);
+            edGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            edGrad.addColorStop(1, 'rgba(0,0,0,0.88)');
+            targetCtx.fillStyle = edGrad;
+            targetCtx.fillRect(0, baseY - 125, BASE_SIZE, BASE_SIZE - (baseY - 125));
+          }
+
+          targetCtx.fillStyle = state.primaryAccentColor;
+          targetCtx.fillRect(42, baseY - 62, 5, 114);
+
+          if (artist) {
+            targetCtx.font = `700 ${state.artistSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = state.primaryAccentColor;
+            drawTrackedText(targetCtx, artist, 60, baseY - 42, state.tracking, 'left', 'rgba(0,0,0,0.85)', 3);
+          }
+
+          if (title) {
+            targetCtx.font = `900 ${state.titleSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = state.textColor;
+            drawTrackedText(targetCtx, title, 60, baseY + 12, state.tracking, 'left', 'rgba(0,0,0,0.9)', 5);
+          }
+
+          if (subtitle) {
+            targetCtx.font = '600 12px "Inter", sans-serif';
+            targetCtx.fillStyle = hexToRgba(state.textColor, 0.84);
+            const sx = state.subtitleAlign === 'left' ? 60 : getSubtitleX(300);
+            drawTrackedText(targetCtx, subtitle, sx, baseY + 56, 2.5, state.subtitleAlign, 'rgba(0,0,0,0.85)', 3);
+          }
+
+        } else if (state.layout === 'classic') {
+          const plaqueY = 465 + yOff;
+          if (state.textBackdrop) {
+            targetCtx.fillStyle = hexToRgba(state.bgBaseColor, 0.92);
+            targetCtx.strokeStyle = state.primaryAccentColor;
+            targetCtx.lineWidth = 2;
+            targetCtx.fillRect(50, plaqueY - 68, BASE_SIZE - 100, 136);
+            targetCtx.strokeRect(50, plaqueY - 68, BASE_SIZE - 100, 136);
+            targetCtx.lineWidth = 0.8;
+            targetCtx.strokeRect(56, plaqueY - 62, BASE_SIZE - 112, 124);
+          }
+
+          if (artist) {
+            targetCtx.font = `700 ${state.artistSize}px "${state.fontFamily}", serif`;
+            targetCtx.fillStyle = state.primaryAccentColor;
+            drawTrackedText(targetCtx, artist, 300, plaqueY - 34, state.tracking + 1, 'center', 'rgba(0,0,0,0.8)', 3);
+          }
+
+          if (title) {
+            targetCtx.font = `900 ${state.titleSize}px "${state.fontFamily}", serif`;
+            targetCtx.fillStyle = state.textColor;
+            drawTrackedText(targetCtx, title, 300, plaqueY + 10, state.tracking, 'center', 'rgba(0,0,0,0.85)', 4);
+          }
+
+          if (subtitle) {
+            targetCtx.font = '600 11px "Inter", sans-serif';
+            targetCtx.fillStyle = hexToRgba(state.textColor, 0.84);
+            const sx = getSubtitleX(300);
+            drawTrackedText(targetCtx, subtitle, sx, plaqueY + 46, 2.5, state.subtitleAlign);
+          }
+
+        } else if (state.layout === 'diagonal') {
+          targetCtx.save();
+          targetCtx.translate(300, 300 + yOff);
+          targetCtx.rotate(-0.14);
+
+          if (state.textBackdrop) {
+            targetCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            targetCtx.fillRect(-350, -76, 700, 152);
+            targetCtx.fillStyle = state.primaryAccentColor;
+            targetCtx.fillRect(-350, -76, 700, 5);
+            targetCtx.fillRect(-350, 71, 700, 5);
+          }
+
+          if (artist) {
+            targetCtx.font = `700 ${state.artistSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = state.primaryAccentColor;
+            drawTrackedText(targetCtx, artist, 0, -42, state.tracking + 2, 'center', '#000000', 4);
+          }
+
+          if (title) {
+            targetCtx.font = `900 ${state.titleSize}px "${state.fontFamily}", sans-serif`;
+            targetCtx.fillStyle = '#000000';
+            drawTrackedText(targetCtx, title, 4, 18, state.tracking, 'center');
+            targetCtx.fillStyle = state.textColor;
+            drawTrackedText(targetCtx, title, 0, 14, state.tracking, 'center', '#000000', 5);
+          }
+
+          if (subtitle) {
+            targetCtx.font = '700 11px "Inter", sans-serif';
+            targetCtx.fillStyle = '#ffffff';
+            const sx = state.subtitleAlign === 'left' ? -220 : (state.subtitleAlign === 'right' ? 220 : 0);
+            drawTrackedText(targetCtx, subtitle, sx, 56, 3, state.subtitleAlign, '#000000', 3);
+          }
+          targetCtx.restore();
+        }
+
+        targetCtx.restore();
+      }
+
+      function drawCornerStamp(targetCtx) {
+        if (state.badgeStyle === 'none') return;
+
+        targetCtx.save();
+        const margin = 32;
+        let x = BASE_SIZE - margin;
+        let y = BASE_SIZE - margin;
+
+        if (state.badgeCorner === 'bl') {
+          x = margin;
+          y = BASE_SIZE - margin;
+        } else if (state.badgeCorner === 'tr') {
+          x = BASE_SIZE - margin;
+          y = margin;
+        } else if (state.badgeCorner === 'tl') {
+          x = margin;
+          y = margin;
+        }
+
+        const isRight = state.badgeCorner === 'br' || state.badgeCorner === 'tr';
+        const isBottom = state.badgeCorner === 'br' || state.badgeCorner === 'bl';
+
+        if (state.badgeStyle === 'explicit') {
+          // Parental Advisory (Explicit Content)
+          const w = 104;
+          const h = 44;
+          const bx = isRight ? x - w : x;
+          const by = isBottom ? y - h : y;
+
+          targetCtx.fillStyle = '#ffffff';
+          targetCtx.fillRect(bx, by, w, h);
+          targetCtx.strokeStyle = '#000000';
+          targetCtx.lineWidth = 2;
+          targetCtx.strokeRect(bx, by, w, h);
+
+          targetCtx.fillStyle = '#000000';
+          targetCtx.fillRect(bx + 3, by + 14, w - 6, 16);
+
+          targetCtx.textAlign = 'center';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.fillStyle = '#000000';
+          targetCtx.font = '900 8.5px "Inter", sans-serif';
+          targetCtx.fillText('PARENTAL', bx + w / 2, by + 8);
+          targetCtx.fillStyle = '#ffffff';
+          targetCtx.font = '900 10px "Inter", sans-serif';
+          targetCtx.fillText('ADVISORY', bx + w / 2, by + 22);
+          targetCtx.fillStyle = '#000000';
+          targetCtx.font = '800 7.5px "Inter", sans-serif';
+          targetCtx.fillText('EXPLICIT CONTENT', bx + w / 2, by + 36);
+
+        } else if (state.badgeStyle === 'limited') {
+          // Limited Edition Vinyl Stamp
+          const r = 30;
+          const cx = isRight ? x - r : x + r;
+          const cy = isBottom ? y - r : y + r;
+
+          targetCtx.fillStyle = 'rgba(10,10,14,0.85)';
+          targetCtx.strokeStyle = state.primaryAccentColor;
+          targetCtx.lineWidth = 1.8;
+          targetCtx.beginPath();
+          targetCtx.arc(cx, cy, r, 0, Math.PI * 2);
+          targetCtx.fill();
+          targetCtx.stroke();
+
+          targetCtx.beginPath();
+          targetCtx.setLineDash([3, 3]);
+          targetCtx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+          targetCtx.stroke();
+          targetCtx.setLineDash([]);
+
+          targetCtx.fillStyle = state.textColor;
+          targetCtx.textAlign = 'center';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.font = '800 7.5px "Inter", sans-serif';
+          targetCtx.fillText('LIMITED EDITION', cx, cy - 6);
+          targetCtx.fillStyle = state.primaryAccentColor;
+          targetCtx.font = '900 8.5px "Inter", sans-serif';
+          targetCtx.fillText('VINYL', cx, cy + 3);
+          targetCtx.fillStyle = state.textColor;
+          targetCtx.font = '600 6.5px "Inter", sans-serif';
+          targetCtx.fillText('PRESSING', cx, cy + 12);
+
+        } else if (state.badgeStyle === 'djpromo') {
+          // DJ Promo Only
+          const w = 108;
+          const h = 36;
+          const bx = isRight ? x - w : x;
+          const by = isBottom ? y - h : y;
+
+          targetCtx.fillStyle = state.primaryAccentColor;
+          targetCtx.fillRect(bx, by, w, h);
+          targetCtx.strokeStyle = '#000000';
+          targetCtx.lineWidth = 2;
+          targetCtx.strokeRect(bx, by, w, h);
+
+          targetCtx.fillStyle = '#000000';
+          targetCtx.textAlign = 'center';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.font = '900 9.5px "Inter", sans-serif';
+          targetCtx.fillText('DJ PROMO ONLY', bx + w / 2, by + 13);
+          targetCtx.font = '700 8px "Inter", sans-serif';
+          targetCtx.fillText('12" CLUB MASTER', bx + w / 2, by + 25);
+
+        } else if (state.badgeStyle === 'hires') {
+          // Hi-Res Master Stamp
+          const w = 112;
+          const h = 34;
+          const bx = isRight ? x - w : x;
+          const by = isBottom ? y - h : y;
+
+          targetCtx.fillStyle = 'rgba(0,0,0,0.78)';
+          targetCtx.strokeStyle = state.textColor;
+          targetCtx.lineWidth = 1.5;
+          targetCtx.fillRect(bx, by, w, h);
+          targetCtx.strokeRect(bx, by, w, h);
+
+          targetCtx.strokeStyle = state.primaryAccentColor;
+          targetCtx.beginPath();
+          targetCtx.arc(bx + 16, by + 17, 7, 0, Math.PI * 2);
+          targetCtx.arc(bx + 25, by + 17, 7, 0, Math.PI * 2);
+          targetCtx.stroke();
+
+          targetCtx.fillStyle = state.primaryAccentColor;
+          targetCtx.font = '800 9.5px "Inter", sans-serif';
+          targetCtx.textAlign = 'left';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.fillText('HI-RES', bx + 37, by + 12);
+          targetCtx.fillStyle = state.textColor;
+          targetCtx.font = '600 8px "Inter", sans-serif';
+          targetCtx.fillText('24-BIT MASTER', bx + 37, by + 23);
+        }
+
+        targetCtx.restore();
+      }
+
+      function drawGenreStage(targetCtx, rand, drawCenterpiece) {
+        switch (state.preset) {
+          case 'synthpop':
+            drawSynthPopStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'silentfilm':
+            drawSilentFilmStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'happyhardcore':
+            drawHappyHardcoreStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'classical':
+            drawClassicalStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'underground':
+            drawUndergroundStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'ballad':
+            drawBalladStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'dnb':
+            drawDrumAndBassStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'hiphop':
+            drawHipHopStage(targetCtx, rand, drawCenterpiece);
+            break;
+          case 'rnb':
+            drawRnBStage(targetCtx, rand, drawCenterpiece);
+            break;
+          default:
+            drawSynthPopStage(targetCtx, rand, drawCenterpiece);
+        }
+      }
+
+      function renderToTargetContext(targetCtx, exportSize = BASE_SIZE) {
+        const scale = exportSize / BASE_SIZE;
+        targetCtx.save();
+        targetCtx.clearRect(0, 0, exportSize, exportSize);
+        if (scale !== 1) {
+          targetCtx.scale(scale, scale);
+        }
+
+        const rand = createPRNG(state.seed);
+
+        // Layer 1: Background Photo or Procedural Stage
+        if (state.uploadedImage) {
+          drawUploadedPhotoStage(targetCtx);
+          // If Centerpiece Geometry Overlay is enabled over custom image, render only the centerpiece layer cleanly
+          if (state.fxCenterpiece) {
+            targetCtx.save();
+            targetCtx.globalAlpha = 0.55;
+            drawGenreStage(targetCtx, rand, true);
+            targetCtx.restore();
+          }
+        } else {
+          drawGenreStage(targetCtx, rand, state.fxCenterpiece);
+        }
+
+        // Layer 2: Surface Overlays & Border Frame
+        drawSurfaceOverlays(targetCtx, rand);
+
+        // Layer 3: Typography & Sleeve Copy
+        drawTypographyLayer(targetCtx);
+
+        // Layer 4: Corner Stamp
+        drawCornerStamp(targetCtx);
+
+        targetCtx.restore();
+      }
+
+      function renderCanvas() {
+        renderToTargetContext(ctx, BASE_SIZE);
+        updateFilenamePreview();
+        updateQuickStatusButtons();
+      }
+
+      function getFormattedFilename(res = 600) {
+        const slugify = str =>
+          (str || 'untitled')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'track';
+        return `${slugify(state.artist)}-${slugify(state.title)}-${res}x${res}.png`;
+      }
+
+      function updateFilenamePreview() {
+        const el = byId('filenamePreview');
+        if (el) el.textContent = getFormattedFilename(600);
+      }
+
+      function updateVisibilityButtonUI(btnId, isVisible) {
+        const btn = byId(btnId);
+        if (!btn) return;
+        btn.classList.toggle('off', !isVisible);
+        btn.innerHTML = isVisible
+          ? '<i class="fa-solid fa-eye"></i><span>Visible</span>'
+          : '<i class="fa-solid fa-eye-slash"></i><span>Hidden</span>';
+      }
+
+      function updateQuickStatusButtons() {
+        const cpLabel = byId('quickCenterpieceLabel');
+        if (cpLabel) {
+          cpLabel.textContent = state.fxCenterpiece ? 'Centerpiece: ON' : 'Centerpiece: OFF';
+        }
+        updateVisibilityButtonUI('toggleTitleVisBtn', state.showTitle);
+        updateVisibilityButtonUI('toggleArtistVisBtn', state.showArtist);
+        updateVisibilityButtonUI('toggleSubtitleVisBtn', state.showSubtitle);
+
+        document.querySelectorAll('.align-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.subAlign === state.subtitleAlign);
+        });
+      }
+
+      function syncUIFromState() {
+        const setVal = (id, val) => {
+          const el = byId(id);
+          if (el) el.value = val;
+        };
+        const setText = (id, txt) => {
+          const el = byId(id);
+          if (el) el.textContent = txt;
+        };
+        const setChecked = (id, bool) => {
+          const el = byId(id);
+          if (el) el.checked = Boolean(bool);
+        };
+
+        setVal('songTitleInput', state.title);
+        setVal('artistNameInput', state.artist);
+        setVal('subtitleInput', state.subtitle);
+
+        setVal('layoutSelect', state.layout);
+        setVal('fontFamilySelect', state.fontFamily);
+
+        setVal('titleSizeSlider', state.titleSize);
+        setText('titleSizeVal', `${state.titleSize} px`);
+
+        setVal('artistSizeSlider', state.artistSize);
+        setText('artistSizeVal', `${state.artistSize} px`);
+
+        setVal('trackingSlider', state.tracking);
+        setText('trackingVal', `${state.tracking} px`);
+
+        setVal('textYOffsetSlider', state.textYOffset);
+        setText('textYOffsetVal', `${state.textYOffset} px`);
+
+        setVal('textGlowSlider', state.textGlow);
+        setText('textGlowVal', `${state.textGlow}%`);
+
+        setChecked('textBackdropToggle', state.textBackdrop);
+
+        setVal('primaryAccentColorInput', state.primaryAccentColor);
+        setVal('secondaryColorInput', state.secondaryColor);
+        setVal('textColorInput', state.textColor);
+        setVal('bgBaseColorInput', state.bgBaseColor);
+
+        setVal('imgTintSlider', state.imgTint);
+        setText('imgTintVal', `${state.imgTint}%`);
+
+        setVal('imgZoomSlider', state.imgZoom);
+        setText('imgZoomVal', `${state.imgZoom}%`);
+
+        setVal('imgPanXSlider', state.imgPanX);
+        setText('imgPanXVal', `${state.imgPanX}`);
+
+        setVal('imgPanYSlider', state.imgPanY);
+        setText('imgPanYVal', `${state.imgPanY}`);
+
+        setVal('imgBrightSlider', state.imgBright);
+        setText('imgBrightVal', `${state.imgBright}%`);
+
+        setVal('imgContrastSlider', state.imgContrast);
+        setText('imgContrastVal', `${state.imgContrast}%`);
+
+        setChecked('fxCenterpieceToggle', state.fxCenterpiece);
+        setChecked('fxVinylToggle', state.fxVinyl);
+        setChecked('fxGrainToggle', state.fxGrain);
+        setChecked('fxScanlinesToggle', state.fxScanlines);
+        setChecked('fxVignetteToggle', state.fxVignette);
+        setChecked('fxBorderToggle', state.fxBorder);
+
+        setVal('fxIntensitySlider', state.fxIntensity);
+        setText('fxIntensityVal', `${state.fxIntensity}%`);
+
+        setVal('badgeStyleSelect', state.badgeStyle);
+        setVal('badgeCornerSelect', state.badgeCorner);
+
+        setText('seedDisplay', `SEED #${state.seed}`);
+        updateQuickStatusButtons();
+      }
+
+      function applyGenrePreset(presetKey) {
+        const p = GENRE_PRESETS[presetKey];
+        if (!p) return;
+
+        state.preset = presetKey;
+        state.fontFamily = p.fontFamily;
+        state.layout = p.layout;
+        state.titleSize = p.titleSize;
+        state.artistSize = p.artistSize;
+        state.tracking = p.tracking;
+        state.textYOffset = p.textYOffset;
+        state.textGlow = p.textGlow;
+        state.textBackdrop = p.textBackdrop;
+        state.primaryAccentColor = p.primaryAccentColor;
+        state.secondaryColor = p.secondaryColor;
+        state.textColor = p.textColor;
+        state.bgBaseColor = p.bgBaseColor;
+        state.fxCenterpiece = p.fxCenterpiece;
+        state.fxVinyl = p.fxVinyl;
+        state.fxGrain = p.fxGrain;
+        state.fxScanlines = p.fxScanlines;
+        state.fxVignette = p.fxVignette;
+        state.fxBorder = p.fxBorder;
+        state.fxIntensity = p.fxIntensity;
+        state.badgeStyle = p.badgeStyle;
+        state.badgeCorner = p.badgeCorner;
+
+        const badge = byId('activePresetBadge');
+        if (badge) badge.textContent = p.label;
+
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.preset === presetKey);
+        });
+
+        syncUIFromState();
+        renderCanvas();
+      }
+
+      function clearAllOverlays() {
+        state.fxCenterpiece = false;
+        state.fxVinyl = false;
+        state.fxGrain = false;
+        state.fxScanlines = false;
+        state.fxVignette = false;
+        state.fxBorder = false;
+        state.badgeStyle = 'none';
+        if (state.uploadedImage) {
+          state.imgTint = 0;
+        }
+        syncUIFromState();
+        renderCanvas();
+      }
+
+      function restorePresetOverlays() {
+        const p = GENRE_PRESETS[state.preset];
+        if (!p) return;
+        state.fxCenterpiece = true;
+        state.fxVinyl = p.fxVinyl;
+        state.fxGrain = p.fxGrain;
+        state.fxScanlines = p.fxScanlines;
+        state.fxVignette = p.fxVignette;
+        state.fxBorder = p.fxBorder;
+        state.badgeStyle = p.badgeStyle;
+        syncUIFromState();
+        renderCanvas();
+      }
+
+      // Bind 9 Genre Preset Buttons
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          applyGenrePreset(btn.dataset.preset);
+        });
+      });
+
+      // Bind Left Sidebar Tabs
+      document.querySelectorAll('.left-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.dataset.leftTab;
+          document.querySelectorAll('.left-tab-btn').forEach(b => {
+            b.classList.toggle('active', b === btn);
+            b.classList.toggle('text-slate-400', b !== btn);
+          });
+          document.querySelectorAll('.left-tab-panel').forEach(panel => {
+            panel.classList.toggle('hidden', panel.id !== targetId);
+          });
+        });
+      });
+
+      on('songTitleInput', 'input', e => {
+        state.title = e.target.value;
+        renderCanvas();
+      });
+
+      on('artistNameInput', 'input', e => {
+        state.artist = e.target.value;
+        renderCanvas();
+      });
+
+      on('subtitleInput', 'input', e => {
+        state.subtitle = e.target.value;
+        renderCanvas();
+      });
+
+      on('toggleTitleVisBtn', 'click', () => {
+        state.showTitle = !state.showTitle;
+        renderCanvas();
+      });
+
+      on('toggleArtistVisBtn', 'click', () => {
+        state.showArtist = !state.showArtist;
+        renderCanvas();
+      });
+
+      on('toggleSubtitleVisBtn', 'click', () => {
+        state.showSubtitle = !state.showSubtitle;
+        renderCanvas();
+      });
+
+      document.querySelectorAll('.align-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.subtitleAlign = btn.dataset.subAlign || 'center';
+          renderCanvas();
+        });
+      });
+
+      let isUppercaseMode = true;
+      on('swapCaseBtn', 'click', () => {
+        isUppercaseMode = !isUppercaseMode;
+        if (isUppercaseMode) {
+          state.title = state.title.toUpperCase();
+          state.artist = state.artist.toUpperCase();
+        } else {
+          const toTitleCase = str => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+          state.title = toTitleCase(state.title);
+          state.artist = toTitleCase(state.artist);
+        }
+        syncUIFromState();
+        renderCanvas();
+      });
+
+      function bindSlider(sliderId, valId, stateKey, unit = '') {
+        on(sliderId, 'input', e => {
+          const v = Number(e.target.value);
+          state[stateKey] = v;
+          const labelEl = byId(valId);
+          if (labelEl) labelEl.textContent = `${v}${unit}`;
+          renderCanvas();
+        });
+      }
+
+      bindSlider('titleSizeSlider', 'titleSizeVal', 'titleSize', ' px');
+      bindSlider('artistSizeSlider', 'artistSizeVal', 'artistSize', ' px');
+      bindSlider('trackingSlider', 'trackingVal', 'tracking', ' px');
+      bindSlider('textYOffsetSlider', 'textYOffsetVal', 'textYOffset', ' px');
+      bindSlider('textGlowSlider', 'textGlowVal', 'textGlow', '%');
+
+      bindSlider('imgTintSlider', 'imgTintVal', 'imgTint', '%');
+      bindSlider('imgZoomSlider', 'imgZoomVal', 'imgZoom', '%');
+      bindSlider('imgPanXSlider', 'imgPanXVal', 'imgPanX', '');
+      bindSlider('imgPanYSlider', 'imgPanYVal', 'imgPanY', '');
+      bindSlider('imgBrightSlider', 'imgBrightVal', 'imgBright', '%');
+      bindSlider('imgContrastSlider', 'imgContrastVal', 'imgContrast', '%');
+      bindSlider('fxIntensitySlider', 'fxIntensityVal', 'fxIntensity', '%');
+
+      on('layoutSelect', 'change', e => {
+        state.layout = e.target.value;
+        renderCanvas();
+      });
+
+      on('fontFamilySelect', 'change', e => {
+        state.fontFamily = e.target.value;
+        renderCanvas();
+      });
+
+      on('textBackdropToggle', 'change', e => {
+        state.textBackdrop = e.target.checked;
+        renderCanvas();
+      });
+
+      on('primaryAccentColorInput', 'input', e => {
+        state.primaryAccentColor = e.target.value;
+        renderCanvas();
+      });
+      on('secondaryColorInput', 'input', e => {
+        state.secondaryColor = e.target.value;
+        renderCanvas();
+      });
+      on('textColorInput', 'input', e => {
+        state.textColor = e.target.value;
+        renderCanvas();
+      });
+      on('bgBaseColorInput', 'input', e => {
+        state.bgBaseColor = e.target.value;
+        renderCanvas();
+      });
+
+      // Overlay Toggles
+      [
+        ['fxCenterpieceToggle', 'fxCenterpiece'],
+        ['fxVinylToggle', 'fxVinyl'],
+        ['fxGrainToggle', 'fxGrain'],
+        ['fxScanlinesToggle', 'fxScanlines'],
+        ['fxVignetteToggle', 'fxVignette'],
+        ['fxBorderToggle', 'fxBorder']
+      ].forEach(([id, key]) => {
+        on(id, 'change', e => {
+          state[key] = e.target.checked;
+          renderCanvas();
+        });
+      });
+
+      on('badgeStyleSelect', 'change', e => {
+        state.badgeStyle = e.target.value;
+        renderCanvas();
+      });
+
+      on('badgeCornerSelect', 'change', e => {
+        state.badgeCorner = e.target.value;
+        renderCanvas();
+      });
+
+      on('clearAllOverlaysBtn', 'click', clearAllOverlays);
+      on('topClearOverlaysBtn', 'click', clearAllOverlays);
+      on('quickClearOverlaysBtn', 'click', clearAllOverlays);
+      on('restoreOverlaysBtn', 'click', restorePresetOverlays);
+
+      on('quickToggleCenterpieceBtn', 'click', () => {
+        state.fxCenterpiece = !state.fxCenterpiece;
+        syncUIFromState();
+        renderCanvas();
+      });
+
+      const dropZone = byId('dropZone');
+      const bgImageInput = byId('bgImageInput');
+      const removeCustomImageBtn = byId('removeCustomImageBtn');
+      const customImgStatus = byId('customImgStatus');
+
+      function loadCustomImageFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = new Image();
+          img.onload = () => {
+            state.uploadedImage = img;
+            state.imgZoom = 100;
+            state.imgPanX = 0;
+            state.imgPanY = 0;
+            state.imgTint = 0; // Default to 0% tint so uploaded image is clear right away
+            if (removeCustomImageBtn) removeCustomImageBtn.disabled = false;
+            if (customImgStatus) {
+              customImgStatus.textContent = `Loaded: ${file.name.slice(0, 24)}`;
+              customImgStatus.className = 'text-[11px] text-emerald-400 font-semibold';
+            }
+            syncUIFromState();
+            renderCanvas();
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      if (dropZone && bgImageInput) {
+        dropZone.addEventListener('click', () => bgImageInput.click());
+        bgImageInput.addEventListener('change', e => {
+          if (e.target.files && e.target.files[0]) {
+            loadCustomImageFile(e.target.files[0]);
+          }
+        });
+
+        dropZone.addEventListener('dragover', e => {
+          e.preventDefault();
+          dropZone.classList.add('border-sky-400');
+        });
+        dropZone.addEventListener('dragleave', () => {
+          dropZone.classList.remove('border-sky-400');
+        });
+        dropZone.addEventListener('drop', e => {
+          e.preventDefault();
+          dropZone.classList.remove('border-sky-400');
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            loadCustomImageFile(e.dataTransfer.files[0]);
+          }
+        });
+      }
+
+      on('removeCustomImageBtn', 'click', () => {
+        state.uploadedImage = null;
+        if (bgImageInput) bgImageInput.value = '';
+        if (removeCustomImageBtn) removeCustomImageBtn.disabled = true;
+        if (customImgStatus) {
+          customImgStatus.textContent = 'Using procedural genre stage';
+          customImgStatus.className = 'text-[11px] text-slate-400';
+        }
+        syncUIFromState();
+        renderCanvas();
+      });
+
+      function randomizeArtSeed() {
+        state.seed = Math.floor(1000 + Math.random() * 9000);
+        syncUIFromState();
+        renderCanvas();
+      }
+
+      on('topRandomSeedBtn', 'click', randomizeArtSeed);
+      on('rightRandomSeedBtn', 'click', randomizeArtSeed);
+
+      on('rightResetPresetBtn', 'click', () => {
+        state.focalOffsetX = 0;
+        state.focalOffsetY = 0;
+        applyGenrePreset(state.preset);
+      });
+
+      on('resetCenterBtn', 'click', () => {
+        state.focalOffsetX = 0;
+        state.focalOffsetY = 0;
+        state.imgPanX = 0;
+        state.imgPanY = 0;
+        syncUIFromState();
+        renderCanvas();
+      });
+
+      // Interactive pointer dragging directly on the 600x600 canvas
+      let isDragging = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      canvas.addEventListener('pointerdown', e => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (canvas.setPointerCapture) {
+          canvas.setPointerCapture(e.pointerId);
+        }
+      });
+
+      canvas.addEventListener('pointermove', e => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const scale = BASE_SIZE / (rect.width || BASE_SIZE);
+        const dx = (e.clientX - lastX) * scale;
+        const dy = (e.clientY - lastY) * scale;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        if (state.uploadedImage) {
+          state.imgPanX = Math.max(-300, Math.min(300, Math.round(state.imgPanX + dx)));
+          state.imgPanY = Math.max(-300, Math.min(300, Math.round(state.imgPanY + dy)));
+          syncUIFromState();
+        } else {
+          state.focalOffsetX = Math.max(-180, Math.min(180, state.focalOffsetX + dx));
+          state.focalOffsetY = Math.max(-180, Math.min(180, state.focalOffsetY + dy));
+        }
+        renderCanvas();
+      });
+
+      canvas.addEventListener('pointerup', () => {
+        isDragging = false;
+      });
+      canvas.addEventListener('pointercancel', () => {
+        isDragging = false;
+      });
+
+      // Multi-Resolution PNG Export (600x600 or 1800x1800)
+      function exportCoverPng(targetResolution) {
+        const res = targetResolution || 600;
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = res;
+        outCanvas.height = res;
+        const outCtx = outCanvas.getContext('2d');
+
+        renderToTargetContext(outCtx, res);
+
+        const link = document.createElement('a');
+        link.download = getFormattedFilename(res);
+        link.href = outCanvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      on('topDownload600Btn', 'click', () => exportCoverPng(600));
+      on('download600Btn', 'click', () => exportCoverPng(600));
+      on('download1800Btn', 'click', () => exportCoverPng(1800));
+
+      // Initial render on load and after Google Fonts settle
+      window.addEventListener('load', () => {
+        syncUIFromState();
+        renderCanvas();
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => {
+            renderCanvas();
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

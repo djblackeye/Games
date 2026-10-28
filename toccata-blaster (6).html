@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOCCATA BLASTER</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #020005;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Press Start 2P', monospace;
+  overflow: hidden;
+}
+#wrap { display: flex; flex-direction: column; align-items: center; }
+#hud {
+  width: 480px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: #9900cc;
+  padding: 6px 4px;
+  letter-spacing: 1px;
+}
+#hud span b { color: #dd44ff; }
+canvas { display: block; cursor: crosshair; }
+#audio-row {
+  width: 480px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 4px;
+  font-size: 7px;
+  color: #550088;
+}
+#music-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  background: transparent;
+  border: 1px solid #440077;
+  color: #aa55cc;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#music-btn:hover { background: #110022; color: #dd88ff; }
+#mname { color: #552277; overflow: hidden; white-space: nowrap; max-width: 260px; text-overflow: ellipsis; }
+input[type=file] { display: none; }
+#touch-bar { display: none; gap: 16px; margin-top: 8px; }
+@media (pointer: coarse) { #touch-bar { display: flex; } }
+.tbtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  background: #110022;
+  border: 1px solid #5500aa;
+  color: #aa66ff;
+  padding: 18px 28px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <span>SCORE <b id="sv">0</b></span>
+    <span>LVL <b id="lv">1</b></span>
+    <span>HI <b id="hv">0</b></span>
+    <span>♥ <b id="lf">3</b></span>
+  </div>
+  <canvas id="c" width="480" height="552"></canvas>
+  <div id="audio-row">
+    <button id="music-btn" onclick="document.getElementById('mf').click()">▶ LOAD YOUR CHIPTUNE</button>
+    <input type="file" id="mf" accept="audio/*">
+    <span id="mname">— no track loaded —</span>
+  </div>
+</div>
+<div id="touch-bar">
+  <button class="tbtn" id="tl">◄</button>
+  <button class="tbtn" id="tf">FIRE</button>
+  <button class="tbtn" id="tr">►</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  TOCCATA BLASTER  ·  gothic galaxian shooter
+// ════════════════════════════════════════════════════
+
+const CV = document.getElementById('c');
+const cx = CV.getContext('2d');
+const W = 480, H = 552;
+
+// ── Pixel sprite data (8×8 grid, drawn at 3px/cell = 24px sprites) ──
+const PX = 3, SP = 8 * PX; // PX=pixel size, SP=sprite size (24px)
+
+const SPRITE = {
+  bat: [
+    1,0,0,0,0,0,0,1,
+    1,1,0,1,1,0,1,1,
+    1,1,1,1,1,1,1,1,
+    0,1,1,0,0,1,1,0,
+    0,0,1,1,1,1,0,0,
+    0,0,0,1,1,0,0,0,
+    0,0,1,0,0,1,0,0,
+    0,0,0,0,0,0,0,0,
+  ],
+  skull: [
+    0,0,1,1,1,1,0,0,
+    0,1,0,1,1,0,1,0,
+    1,1,1,1,1,1,1,1,
+    1,0,1,1,1,1,0,1,
+    0,1,1,1,1,1,1,0,
+    0,0,1,0,0,1,0,0,
+    0,1,0,0,0,0,1,0,
+    0,0,0,0,0,0,0,0,
+  ],
+  imp: [
+    0,1,0,0,0,0,1,0,
+    0,0,1,1,1,1,0,0,
+    0,1,0,1,1,0,1,0,
+    0,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,0,0,
+    0,1,0,0,0,0,1,0,
+    0,0,1,1,1,1,0,0,
+    0,0,0,0,0,0,0,0,
+  ],
+  ship: [
+    0,0,0,1,1,0,0,0,
+    0,0,0,1,1,0,0,0,
+    0,0,1,1,1,1,0,0,
+    0,1,1,1,1,1,1,0,
+    1,1,0,1,1,0,1,1,
+    0,0,1,1,1,1,0,0,
+    0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,
+  ]
+};
+
+function spr(name, x, y, color, flip) {
+  const d = SPRITE[name];
+  if (!d) return;
+  cx.fillStyle = color;
+  for (let r = 0; r < 8; r++)
+    for (let col = 0; col < 8; col++)
+      if (d[r * 8 + col]) {
+        const dc = flip ? 7 - col : col;
+        cx.fillRect(Math.round(x + dc * PX), Math.round(y + r * PX), PX, PX);
+      }
+}
+
+// ── Audio ──────────────────────────────────────────────
+let ac = null, bgBuf = null, bgSrc = null;
+
+function getAC() {
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  return ac;
+}
+
+document.getElementById('mf').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  document.getElementById('mname').textContent = f.name;
+  const rdr = new FileReader();
+  rdr.onload = ev => {
+    getAC().decodeAudioData(ev.target.result, buf => {
+      bgBuf = buf;
+      if (gs === 'play') startBG();
+    });
+  };
+  rdr.readAsArrayBuffer(f);
+});
+
+function startBG() {
+  stopBG();
+  if (!bgBuf) return;
+  bgSrc = getAC().createBufferSource();
+  bgSrc.buffer = bgBuf;
+  bgSrc.loop = true;
+  bgSrc.connect(getAC().destination);
+  bgSrc.start();
+}
+function stopBG() {
+  if (bgSrc) { try { bgSrc.stop(); } catch(_) {} bgSrc = null; }
+}
+
+function sfx(type) {
+  try {
+    const a = getAC(), t = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination);
+    if (type === 'shoot') {
+      o.type = 'square';
+      o.frequency.setValueAtTime(800, t);
+      o.frequency.exponentialRampToValueAtTime(180, t + 0.09);
+      g.gain.setValueAtTime(0.13, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      o.start(t); o.stop(t + 0.09);
+    } else if (type === 'hit') {
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(280, t);
+      o.frequency.exponentialRampToValueAtTime(40, t + 0.22);
+      g.gain.setValueAtTime(0.28, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.start(t); o.stop(t + 0.22);
+    } else if (type === 'die') {
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(480, t);
+      o.frequency.exponentialRampToValueAtTime(18, t + 0.75);
+      g.gain.setValueAtTime(0.38, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+      o.start(t); o.stop(t + 0.75);
+    } else if (type === 'clear') {
+      [523, 659, 784, 1047].forEach((f, i) => {
+        const o2 = a.createOscillator(), g2 = a.createGain();
+        o2.connect(g2); g2.connect(a.destination);
+        o2.type = 'square'; o2.frequency.value = f;
+        const st = t + i * 0.1;
+        g2.gain.setValueAtTime(0.2, st);
+        g2.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
+        o2.start(st); o2.stop(st + 0.18);
+      });
+    }
+  } catch(_) {}
+}
+
+// ── Game constants ─────────────────────────────────────
+const ROWS = 5, COLS = 10;
+const CW = SP + 10, CH = SP + 10;       // cell dimensions
+const FW = COLS * CW;                    // formation width
+const BASE_SPEED = 0.42;
+
+const ECOLS = ['#ff00cc','#cc00ff','#aa00ff','#7700ee','#5500bb'];
+const ETYPS = ['bat','skull','skull','imp','imp'];
+const EPTS  = [30, 20, 20, 10, 10];
+
+// ── Game state ────────────────────────────────────────
+let gs = 'title';            // title | play | dead | win | over
+let score = 0, hi = 0, lives = 5, lvl = 1;
+let frame = 0, sf = 0;       // global frame, state-local frame
+
+// Player
+let px, py = H - 55, pinv = 0, pCool = 0;
+
+// Formation
+let fx, fy, fdx;
+
+// Enemies
+let enemies = [], alive = 0;
+
+// Bullets
+let pBul = [], eBul = [];
+
+// Divers (Galaxian dive-bomb enemies)
+let divers = [], diveCD = 0;
+
+// Particles
+let parts = [];
+
+// Scrolling star field
+const stars = Array.from({ length: 70 }, () => ({
+  x: Math.random() * W,
+  y: Math.random() * H,
+  sz: 0.5 + Math.random() * 1.5,
+  spd: 0.15 + Math.random() * 0.4,
+  b: Math.random()
+}));
+
+// Touch
+const tc = { L: false, R: false, F: false };
+document.getElementById('tl').addEventListener('touchstart', e => { e.preventDefault(); tc.L = true; });
+document.getElementById('tl').addEventListener('touchend',   e => { e.preventDefault(); tc.L = false; });
+document.getElementById('tr').addEventListener('touchstart', e => { e.preventDefault(); tc.R = true; });
+document.getElementById('tr').addEventListener('touchend',   e => { e.preventDefault(); tc.R = false; });
+document.getElementById('tf').addEventListener('touchstart', e => { e.preventDefault(); tc.F = true; });
+document.getElementById('tf').addEventListener('touchend',   e => { e.preventDefault(); tc.F = false; });
+
+// Input
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['Space','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if ((e.code === 'Space' || e.code === 'Enter') && gs === 'title') startGame();
+  if ((e.code === 'Space' || e.code === 'Enter') && gs === 'over')  gs = 'title';
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// ── Init level ────────────────────────────────────────
+function initLevel() {
+  pBul = []; eBul = []; divers = []; parts = [];
+  diveCD = 320;
+  px = W / 2 - SP / 2;
+  pinv = 0; pCool = 0;
+
+  const spd = BASE_SPEED + (lvl - 1) * 0.15;
+  fx = (W - FW) / 2; fy = 78; fdx = spd;
+
+  enemies = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      enemies.push({
+        r, c, alive: true, diving: false,
+        type: ETYPS[r], color: ECOLS[r], pts: EPTS[r],
+        x: 0, y: 0,
+        sc: 80 + Math.floor(Math.random() * 130)
+      });
+  alive = ROWS * COLS;
+  recalc();
+}
+
+function recalc() {
+  for (const e of enemies) {
+    if (!e.alive || e.diving) continue;
+    e.x = fx + e.c * CW;
+    e.y = fy + e.r * CH;
+  }
+}
+
+function respawnPlayer() {
+  pBul = []; eBul = [];
+  for (const d of divers) d.enemy.diving = false;
+  divers = []; diveCD = 280;
+  px = W / 2 - SP / 2;
+  pinv = 0; pCool = 0;
+}
+
+function startGame() {
+  getAC();
+  score = 0; lives = 5; lvl = 1;
+  gs = 'play'; frame = 0; sf = 0;
+  initLevel(); startBG(); hud();
+}
+
+// ── Helpers ───────────────────────────────────────────
+function box(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+function isBottom(e) {
+  return !enemies.some(f => f.alive && !f.diving && f.c === e.c && f.r > e.r);
+}
+function hud() {
+  document.getElementById('sv').textContent = score;
+  document.getElementById('hv').textContent = hi;
+  document.getElementById('lf').textContent = Math.max(0, lives);
+  document.getElementById('lv').textContent = lvl;
+}
+
+// ── Particles ─────────────────────────────────────────
+function burst(x, y, col, n = 10) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1.2 + Math.random() * 3;
+    parts.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 0.5,
+                 life: 22 + Math.random() * 22, col, sz: 2 + Math.random() * 2 });
+  }
+}
+function tickParts() {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.09; p.life--;
+    if (p.life <= 0) parts.splice(i, 1);
+  }
+}
+
+// ── Kill enemy ────────────────────────────────────────
+function killE(e) {
+  if (!e.alive) return;
+  e.alive = false; alive--;
+  score += e.pts; if (score > hi) hi = score;
+  sfx('hit');
+  burst(e.x + SP/2, e.y + SP/2, e.color, 10);
+  burst(e.x + SP/2, e.y + SP/2, '#ffaa00', 5);
+  hud();
+}
+
+// ── Player death ──────────────────────────────────────
+function playerDie() {
+  if (pinv > 0) return;
+  lives--;
+  sfx('die');
+  burst(px + SP/2, py + SP/2, '#00ff88', 14);
+  burst(px + SP/2, py + SP/2, '#ffffff', 7);
+  pinv = 9999;
+  for (const d of divers) d.enemy.diving = false;
+  divers = []; eBul = [];
+  gs = 'dead'; sf = 0; hud();
+}
+
+// ── Dive spawning ─────────────────────────────────────
+function spawnDive() {
+  const cands = enemies.filter(e => e.alive && !e.diving);
+  if (!cands.length) return;
+  const cnt = Math.min(2, 1 + Math.floor(Math.random() * 2));
+  cands.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(cnt, cands.length); i++) {
+    const e = cands[i];
+    e.diving = true;
+    const sx = e.x, sy = e.y;
+    const tx = px, ty = py;
+    const side = Math.random() > 0.5 ? 1 : -1;
+    const cpx = sx + side * (80 + Math.random() * 140);
+    const cpy = sy + 30 + Math.random() * 100;
+    divers.push({ enemy: e, sx, sy, cpx, cpy, tx, ty, x: sx, y: sy, t: 0, scd: 45 });
+  }
+}
+
+// ── Main update ───────────────────────────────────────
+function update() {
+  frame++; sf++;
+
+  // Scroll stars always
+  for (const s of stars) {
+    s.y += s.spd;
+    if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+  }
+
+  if (gs === 'title' || gs === 'over') return;
+
+  if (gs === 'dead') {
+    tickParts();
+    if (sf > 115) {
+      if (lives <= 0) { gs = 'over'; sf = 0; }
+      else { gs = 'play'; sf = 0; respawnPlayer(); }
+    }
+    return;
+  }
+  if (gs === 'win') {
+    tickParts();
+    if (sf > 140) { lvl++; gs = 'play'; sf = 0; initLevel(); hud(); }
+    return;
+  }
+
+  // ── Player ──
+  if ((keys.ArrowLeft  || keys.KeyA || tc.L) && px > 0)     px -= 3.5;
+  if ((keys.ArrowRight || keys.KeyD || tc.R) && px < W - SP) px += 3.5;
+  px = Math.max(0, Math.min(W - SP, px));
+  if (pinv > 0) pinv--;
+
+  if (pCool > 0) pCool--;
+  if ((keys.Space || keys.KeyZ || keys.KeyX || tc.F) && pCool === 0) {
+    pBul.push({ x: px + SP/2 - 1, y: py - 4 });
+    pCool = 10; sfx('shoot');
+  }
+
+  // ── Player bullets ──
+  for (let i = pBul.length - 1; i >= 0; i--) {
+    pBul[i].y -= 9;
+    if (pBul[i].y < -14) { pBul.splice(i, 1); continue; }
+    let gone = false;
+    for (const e of enemies) {
+      if (!e.alive || e.diving) continue;
+      if (box(pBul[i].x - 1, pBul[i].y, 3, 10, e.x, e.y, SP, SP)) {
+        killE(e); pBul.splice(i, 1); gone = true; break;
+      }
+    }
+    if (gone) continue;
+    for (let j = divers.length - 1; j >= 0; j--) {
+      const d = divers[j];
+      if (box(pBul[i].x - 1, pBul[i].y, 3, 10, d.x, d.y, SP, SP)) {
+        killE(d.enemy); divers.splice(j, 1); pBul.splice(i, 1); gone = true; break;
+      }
+    }
+  }
+
+  // ── Formation movement ──
+  let leftX = W, rightX = 0;
+  for (const e of enemies) {
+    if (!e.alive || e.diving) continue;
+    const ex = fx + e.c * CW;
+    if (ex < leftX) leftX = ex;
+    if (ex + SP > rightX) rightX = ex + SP;
+  }
+  const spd = 1 + (1 - alive / (ROWS * COLS)) * 1.2; // speed up as enemies die
+  fx += fdx * spd;
+  if (fdx > 0 && rightX + fdx * spd > W - 4) { fdx = -Math.abs(fdx); fy += 10; }
+  else if (fdx < 0 && leftX + fdx * spd < 4) { fdx =  Math.abs(fdx); fy += 10; }
+  recalc();
+
+  // Formation too low?
+  for (const e of enemies)
+    if (e.alive && !e.diving && e.y + SP > py - 6) { playerDie(); return; }
+
+  // ── Divers ──
+  diveCD--;
+  if (diveCD <= 0 && alive > 0) {
+    diveCD = Math.max(100, 260 - lvl * 12);
+    spawnDive();
+  }
+
+  const espd = 2.0 + lvl * 0.18;
+  for (let i = divers.length - 1; i >= 0; i--) {
+    const d = divers[i];
+    d.t += 0.015 + lvl * 0.002;
+    const t1 = 1 - d.t;
+    d.x = t1*t1*d.sx + 2*t1*d.t*d.cpx + d.t*d.t*d.tx;
+    d.y = t1*t1*d.sy + 2*t1*d.t*d.cpy + d.t*d.t*d.ty;
+
+    d.scd--;
+    if (d.scd <= 0) {
+      d.scd = 42;
+      const ang = Math.atan2(py - d.y, px + SP/2 - d.x - SP/2);
+      eBul.push({ x: d.x + SP/2, y: d.y + SP, vx: Math.cos(ang) * espd, vy: Math.sin(ang) * espd });
+    }
+    if (d.t >= 1) { d.enemy.diving = false; divers.splice(i, 1); continue; }
+    if (pinv <= 0 && box(d.x, d.y, SP, SP, px, py, SP, SP)) { playerDie(); return; }
+  }
+
+  // ── Enemy bullets ──
+  for (const e of enemies) {
+    if (!e.alive || e.diving) continue;
+    e.sc--;
+    if (e.sc <= 0 && isBottom(e) && eBul.length < 3) {
+      e.sc = Math.floor((180 + Math.random() * 200) / spd);
+      eBul.push({ x: e.x + SP/2, y: e.y + SP, vx: 0, vy: espd });
+    }
+  }
+  for (let i = eBul.length - 1; i >= 0; i--) {
+    eBul[i].x += eBul[i].vx || 0;
+    eBul[i].y += eBul[i].vy;
+    if (eBul[i].y > H + 12) { eBul.splice(i, 1); continue; }
+    if (pinv <= 0 && box(eBul[i].x - 2, eBul[i].y, 4, 8, px, py, SP, SP)) {
+      eBul.splice(i, 1); playerDie(); return;
+    }
+  }
+
+  tickParts();
+
+  if (alive <= 0 && divers.length === 0) {
+    const bonus = lvl * 1000; score += bonus; if (score > hi) hi = score; hud(); sfx('clear'); gs = 'win'; sf = 0;
+  }
+}
+
+// ── Draw ──────────────────────────────────────────────
+function draw() {
+  cx.clearRect(0, 0, W, H);
+  cx.fillStyle = '#020005';
+  cx.fillRect(0, 0, W, H);
+
+  // Star field
+  for (const s of stars) {
+    const a = 0.25 + s.b * 0.55 * (0.75 + 0.25 * Math.sin(frame * 0.04 + s.b * 9));
+    cx.fillStyle = `rgba(190,130,255,${a.toFixed(2)})`;
+    cx.fillRect(Math.round(s.x), Math.round(s.y), s.sz, s.sz);
+  }
+
+  if (gs === 'title') { drawTitle(); return; }
+  if (gs === 'over')  { drawOver();  return; }
+
+  // Particles
+  for (const p of parts) {
+    const a = Math.min(1, p.life / 30);
+    cx.globalAlpha = a;
+    cx.fillStyle = p.col;
+    cx.fillRect(Math.round(p.x - p.sz/2), Math.round(p.y - p.sz/2), p.sz, p.sz);
+  }
+  cx.globalAlpha = 1;
+
+  // Formation enemies
+  const animF = Math.floor(frame / 20) % 2 === 0;
+  for (const e of enemies) {
+    if (!e.alive || e.diving) continue;
+    spr(e.type, e.x, e.y, e.color, animF);
+    // bright highlight on outer row
+    if (e.r === 0) {
+      cx.fillStyle = 'rgba(255,180,255,0.2)';
+      for (let r=0;r<8;r++) for(let col=0;col<8;col++)
+        if (SPRITE[e.type][r*8+col]) {
+          const dc = animF ? 7-col : col;
+          cx.fillRect(Math.round(e.x+dc*PX), Math.round(e.y+r*PX), PX, PX);
+        }
+    }
+  }
+
+  // Divers (faster wing animation)
+  const animD = Math.floor(frame / 10) % 2 === 0;
+  for (const d of divers) {
+    spr(d.enemy.type, d.x, d.y, d.enemy.color, animD);
+    // glow trail
+    cx.fillStyle = `rgba(200,0,255,0.15)`;
+    spr(d.enemy.type, d.x + 1, d.y + 2, `rgba(200,0,255,0.1)`, animD);
+  }
+
+  // Player ship (flicker when invincible)
+  const flicker = (gs === 'dead') || (pinv > 0 && pinv < 160 && Math.floor(frame / 4) % 2 === 1);
+  if (gs !== 'dead' || sf < 35) {
+    if (!flicker) {
+      spr('ship', px, py, '#00ff88');
+      // Engine glow
+      if (Math.floor(frame / 5) % 2 === 0) {
+        cx.fillStyle = '#ff9900';
+        cx.fillRect(Math.round(px + SP/2 - 3), Math.round(py + SP - 1), 6, 4);
+        cx.fillStyle = 'rgba(255,200,0,0.4)';
+        cx.fillRect(Math.round(px + SP/2 - 5), Math.round(py + SP - 1), 10, 6);
+      }
+    }
+  }
+
+  // Player bullets
+  for (const b of pBul) {
+    cx.fillStyle = '#00ffcc';
+    cx.fillRect(Math.round(b.x - 1), Math.round(b.y), 3, 10);
+    cx.fillStyle = 'rgba(0,255,200,0.25)';
+    cx.fillRect(Math.round(b.x - 3), Math.round(b.y - 1), 7, 13);
+  }
+
+  // Enemy bullets
+  for (const b of eBul) {
+    cx.fillStyle = '#ff2200';
+    cx.fillRect(Math.round(b.x - 1), Math.round(b.y), 3, 8);
+    cx.fillStyle = 'rgba(255,50,0,0.25)';
+    cx.fillRect(Math.round(b.x - 2), Math.round(b.y), 5, 8);
+  }
+
+  // Ground line
+  cx.fillStyle = '#2a0044';
+  cx.fillRect(0, H - 34, W, 1);
+
+  // Overlays
+  if (gs === 'win') {
+    cx.fillStyle = 'rgba(2,0,5,0.65)';
+    cx.fillRect(0, 0, W, H);
+    pxt(W/2, H/2 - 24, 'STAGE CLEAR!', '#ffaa00', 12, 'center');
+    pxt(W/2, H/2 + 12, `LEVEL ${lvl + 1} LOADING`, '#cc44ff', 8, 'center');
+    // flicker score bonus text
+    if (Math.floor(sf / 15) % 2 === 0)
+      pxt(W/2, H/2 + 40, `BONUS +${lvl * 1000}`, '#ff00cc', 7, 'center');
+  }
+
+  if (gs === 'dead' && sf > 28 && sf < 115) {
+    cx.fillStyle = 'rgba(2,0,5,0.55)';
+    cx.fillRect(0, 0, W, H);
+    pxt(W/2, H/2, lives > 0 ? `${lives} LIVES LEFT` : 'LAST LIFE!', '#ff2200', 9, 'center');
+  }
+}
+
+function pxt(x, y, text, color, size = 8, align = 'left') {
+  cx.font = `${size}px "Press Start 2P"`;
+  cx.fillStyle = color;
+  cx.textAlign = align;
+  cx.fillText(text, x, y);
+  cx.textAlign = 'left';
+}
+
+function drawTitle() {
+  // Demo enemy grid
+  const tEcols = ['#ff00cc','#cc00ff','#aa00ff','#7700ee','#5500bb'];
+  const tEtyps = ['bat','skull','skull','imp','imp'];
+  const animT = Math.floor(frame / 22) % 2 === 0;
+  for (let r = 0; r < 5; r++)
+    for (let c = 0; c < 4; c++) {
+      const ex = W/2 - 2*(SP+10) + c*(SP+10);
+      const ey = 28 + r*(SP+8);
+      spr(tEtyps[r], ex, ey, tEcols[r], animT);
+    }
+
+  // Title text
+  pxt(W/2, H/2 - 70, 'TOCCATA', '#ff00cc', 22, 'center');
+  pxt(W/2, H/2 - 40, 'BLASTER', '#aa00ff', 22, 'center');
+
+  // Subtitle
+  pxt(W/2, H/2 - 6, 'A GOTHIC SPACE SHOOTER', '#440077', 7, 'center');
+
+  // Blink prompt
+  if (Math.floor(frame / 28) % 2 === 0)
+    pxt(W/2, H/2 + 28, 'PRESS SPACE TO START', '#ff00cc', 9, 'center');
+
+  // Controls
+  pxt(W/2, H/2 + 60, '← → MOVE    SPACE FIRE', '#330055', 7, 'center');
+  pxt(W/2, H/2 + 76, '5 LIVES · EASY MODE', '#220033', 7, 'center');
+
+  if (hi > 0)
+    pxt(W/2, H/2 + 84, `HI SCORE  ${hi}`, '#551177', 7, 'center');
+
+  // Point values key
+  const ptY = H/2 + 118;
+  const entries = [['bat','#ff00cc',30],['skull','#cc00ff',20],['imp','#6600dd',10]];
+  entries.forEach(([type, col, pts], i) => {
+    const ex = W/2 - 80 + i * 56;
+    spr(type, ex, ptY, col, false);
+    pxt(ex + SP + 2, ptY + SP/2 + 3, `${pts}`, col, 7);
+  });
+}
+
+function drawOver() {
+  pxt(W/2, H/2 - 55, 'GAME OVER', '#ff0033', 18, 'center');
+  pxt(W/2, H/2 - 10, `SCORE  ${score}`, '#aa00ff', 8, 'center');
+  pxt(W/2, H/2 + 14, `HI     ${hi}`,   '#660099', 8, 'center');
+  pxt(W/2, H/2 + 42, `LEVEL  ${lvl}`,  '#440066', 8, 'center');
+  if (Math.floor(frame / 30) % 2 === 0)
+    pxt(W/2, H/2 + 72, 'PRESS SPACE', '#ff00cc', 9, 'center');
+}
+
+// ── Loop ──────────────────────────────────────────────
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

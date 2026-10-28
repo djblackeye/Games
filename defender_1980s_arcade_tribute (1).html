@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DEFENDER // 1980s Vector Arcade Tribute</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #030305;
+      font-family: 'Press Start 2P', monospace;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+    .font-vt {
+      font-family: 'VT323', monospace;
+    }
+    /* CRT Scanline & Phosphor Dispersion Overlays */
+    .crt-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.48) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+      );
+      background-size: 100% 3px, 6px 100%;
+      z-index: 40;
+    }
+    .crt-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle, transparent 65%, rgba(0, 0, 0, 0.88) 100%);
+      z-index: 41;
+    }
+    /* Vector Arcade Enclosures */
+    .arcade-border {
+      border: 2px solid #22d3ee;
+      outline: 1px solid rgba(34, 211, 238, 0.4);
+    }
+    .scanner-border {
+      border: 2px solid #eab308;
+      outline: 1px solid rgba(234, 179, 8, 0.5);
+    }
+    .glow-cyan {
+      color: #22d3ee;
+      filter: brightness(1.3);
+    }
+    .glow-red {
+      color: #ef4444;
+      filter: brightness(1.3);
+    }
+    .glow-yellow {
+      color: #eab308;
+      filter: brightness(1.3);
+    }
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #06b6d4;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen m-0 p-0 bg-black text-slate-100 flex flex-col justify-between relative overflow-hidden">
+
+  <!-- CRT Screen Filter Overlays -->
+  <div id="crtOverlay" class="crt-overlay"></div>
+  <div id="crtVignette" class="crt-vignette"></div>
+
+  <!-- TOP ARCADE HEADER & INTEGRATED AUDIO DECK -->
+  <header class="relative z-50 w-full bg-slate-950/95 border-b border-cyan-500/40 px-3 py-2 flex flex-wrap items-center justify-between gap-3 text-xs backdrop-blur-sm">
+    <div class="flex items-center gap-3">
+      <span class="text-yellow-400 glow-yellow text-sm font-bold tracking-widest flex items-center gap-2">
+        <span class="inline-block w-2.5 h-2.5 bg-yellow-400 rounded-full animate-ping"></span>
+        DEFENDER-80
+      </span>
+      <span class="hidden md:inline text-[9px] text-cyan-400/80 border border-cyan-500/40 px-2 py-0.5 rounded">
+        INFINITE SECTOR ENGINE
+      </span>
+    </div>
+
+    <!-- AUDIO CONTROLS & CHIPTUNE FILE UPLOADER -->
+    <div class="flex items-center gap-2 sm:gap-4 flex-wrap bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-700/80">
+      <!-- Upload User Chiptune Track -->
+      <label class="cursor-pointer bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/70 px-2 py-1 rounded text-[9px] flex items-center gap-1.5 transition-all">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+        <span id="chiptuneLabel">LOAD CHIPTUNE</span>
+        <input type="file" id="chiptuneFileInput" accept="audio/*" class="hidden">
+      </label>
+
+      <!-- Synth / BGM Toggle -->
+      <button id="bgmToggleBtn" class="bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-600/60 px-2 py-1 rounded text-[9px] transition">
+        SYNTH BGM: <span id="bgmStatusText" class="text-emerald-400">ON</span>
+      </button>
+
+      <!-- Music Volume Slider -->
+      <div class="flex items-center gap-1.5 text-[9px] text-slate-300">
+        <span>VOL</span>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.65" class="w-16 accent-cyan-400 cursor-pointer">
+      </div>
+
+      <!-- CRT Filter Toggle Button -->
+      <button id="crtToggleBtn" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/50 px-2 py-1 rounded text-[9px]">
+        CRT: <span id="crtStatus">ON</span>
+      </button>
+    </div>
+
+    <!-- QUICK KEYBOARD CONTROLS REFERENCE -->
+    <div class="hidden lg:flex items-center gap-3 text-[9px] text-slate-400">
+      <span><b class="text-cyan-400">W/S/UP/DN:</b> PITCH</span>
+      <span><b class="text-cyan-400">A/D/L/R:</b> THRUST</span>
+      <span><b class="text-cyan-400">SPACE:</b> FIRE</span>
+      <span><b class="text-yellow-400">B:</b> SMART BOMB</span>
+      <span><b class="text-purple-400">H:</b> HYPERSPACE</span>
+    </div>
+  </header>
+
+  <!-- GAME CANVAS CONTAINER -->
+  <main class="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center">
+    <canvas id="gameCanvas" class="w-full h-full block bg-black"></canvas>
+
+    <!-- IN-GAME HUD OVERLAYS -->
+    <div id="hudLayer" class="absolute top-2 inset-x-0 pointer-events-none px-4 flex flex-col items-center justify-between z-30">
+      <!-- Top HUD Data Strip -->
+      <div class="w-full max-w-5xl flex justify-between items-start text-xs sm:text-sm">
+        <!-- Score & High Score -->
+        <div class="flex flex-col gap-1">
+          <div class="text-cyan-400 glow-cyan">SCORE: <span id="hudScore" class="text-white">00000</span></div>
+          <div class="text-yellow-400 text-[10px] glow-yellow">HIGH: <span id="hudHighScore" class="text-slate-200">10000</span></div>
+        </div>
+
+        <!-- Wave / Planet Status Banner -->
+        <div class="text-center">
+          <div class="text-fuchsia-400 tracking-wider text-xs sm:text-sm font-bold" id="hudWaveTitle">WAVE 1</div>
+          <div id="hudPlanetNotice" class="text-[9px] text-emerald-400 mt-0.5">HUMANOIDS PROTECTED</div>
+        </div>
+
+        <!-- Lives & Smart Bombs -->
+        <div class="flex flex-col items-end gap-1.5">
+          <!-- Ship Lives Icons -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400 mr-1">SHIPS:</span>
+            <div id="hudLives" class="flex items-center gap-1"></div>
+          </div>
+          <!-- Smart Bombs -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-yellow-400 mr-1">BOMBS:</span>
+            <div id="hudBombs" class="flex items-center gap-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RADAR SCANNER (TOP CENTER) -->
+      <div class="mt-1 w-full max-w-md sm:max-w-lg lg:max-w-2xl flex flex-col items-center pointer-events-none">
+        <div class="w-full scanner-border bg-black/90 p-0.5 relative rounded overflow-hidden">
+          <canvas id="scannerCanvas" class="w-full h-8 sm:h-9 block"></canvas>
+        </div>
+        <div class="text-[8px] text-yellow-500/80 tracking-widest mt-0.5 uppercase">360° PLANETARY WRAP SCANNER</div>
+      </div>
+    </div>
+
+    <!-- OVERLAY: START SCREEN -->
+    <div id="startScreen" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-6 text-center z-50">
+      <div class="max-w-xl w-full border-2 border-cyan-400 p-6 sm:p-8 rounded-lg bg-slate-950/95 ring-1 ring-cyan-500/40">
+        <h1 class="text-2xl sm:text-4xl text-cyan-400 glow-cyan mb-3 tracking-widest animate-pulse">DEFENDER</h1>
+        <p class="text-xs text-yellow-400 mb-6 tracking-wide font-mono">1980 VECTOR ARCADE SHOOTER TRIBUTE</p>
+
+        <!-- Mission briefing -->
+        <div class="text-left text-[10px] sm:text-xs text-slate-300 space-y-2 mb-6 font-mono leading-relaxed bg-slate-900/70 p-4 border border-slate-700 rounded">
+          <p><span class="text-cyan-300 font-bold">OBJECTIVE:</span> Patrol the infinite wrap-around perimeter across scaling alien waves.</p>
+          <p><span class="text-red-400 font-bold">LANDERS:</span> Kidnap humanoids and carry them to the stratosphere to spawn Mutants.</p>
+          <p><span class="text-blue-400 font-bold">BOMBERS:</span> Lay floating Space Mines across patrol corridors.</p>
+          <p><span class="text-purple-400 font-bold">PODS:</span> Shatter into fast Swarmers when destroyed.</p>
+          <p><span class="text-yellow-300 font-bold">BAITERS:</span> Hyper-speed interceptors deployed if you take too long to clear a sector.</p>
+          <p><span class="text-emerald-400 font-bold">RESCUE & RESTORE:</span> Catch falling humanoids for 500 pts and deposit them for 500 pts. Bonus ship + smart bomb every 10,000 pts. Planet crust reconstructs every 5 waves!</p>
+        </div>
+
+        <button id="startBtn" class="w-full py-4 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-500 text-white font-bold rounded text-sm sm:text-base border border-cyan-300 hover:brightness-125 transition-all transform hover:scale-105 active:scale-95">
+          INSERT COIN // ENGAGE MISSION
+        </button>
+
+        <div class="mt-4 text-[9px] text-slate-400">
+          TIP: Load your custom chiptunes with <span class="text-cyan-400 font-bold">"LOAD CHIPTUNE"</span> at top!
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERLAY: GAME OVER -->
+    <div id="gameOverScreen" class="hidden absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-6 text-center z-50">
+      <div class="max-w-md w-full border-2 border-red-500 p-6 sm:p-8 rounded-lg bg-slate-950/95 ring-1 ring-red-500/40">
+        <h2 class="text-2xl sm:text-3xl text-red-500 glow-red mb-2 animate-bounce">GAME OVER</h2>
+        <p class="text-xs text-slate-400 mb-6 font-mono">YOUR DEFENDER CRAFT WAS DESTROYED</p>
+
+        <div class="bg-slate-900/80 p-4 rounded border border-slate-700 mb-6 text-left space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-400">FINAL SCORE:</span>
+            <span id="finalScoreVal" class="text-cyan-400 font-bold">0</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">HIGH SCORE:</span>
+            <span id="finalHighScoreVal" class="text-yellow-400 font-bold">0</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">WAVE REACHED:</span>
+            <span id="finalWaveVal" class="text-fuchsia-400 font-bold">1</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">HUMANOIDS RESCUED:</span>
+            <span id="finalSavedVal" class="text-emerald-400 font-bold">0</span>
+          </div>
+        </div>
+
+        <button id="restartBtn" class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded text-sm border border-red-300 transition transform hover:scale-105 active:scale-95">
+          PLAY AGAIN
+        </button>
+      </div>
+    </div>
+
+    <!-- OVERLAY: WAVE CLEARED & TRANSITION BANNER -->
+    <div id="waveBanner" class="hidden absolute inset-x-0 top-1/3 flex flex-col items-center justify-center pointer-events-none z-40 transition-opacity">
+      <div class="bg-black/90 border-y-2 border-cyan-400 px-8 py-5 text-center backdrop-blur-md ring-1 ring-cyan-500/50">
+        <h3 id="waveBannerTitle" class="text-xl sm:text-2xl text-cyan-400 glow-cyan mb-2">WAVE CLEARED</h3>
+        <p id="waveBannerSub" class="text-xs text-yellow-300 font-mono">SURVIVOR BONUS CALCULATED</p>
+        <div id="waveBannerTally" class="text-[10px] text-emerald-400 font-mono mt-2"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ON-SCREEN TOUCH CONTROLS (MOBILE/TABLET) -->
+  <div id="mobileControls" class="lg:hidden relative z-40 w-full bg-slate-950/95 border-t border-slate-800 p-2 flex justify-between items-center gap-2 select-none">
+    <!-- Directional Pad -->
+    <div class="grid grid-cols-3 gap-1 w-32 h-24">
+      <div></div>
+      <button id="btnTouchUp" class="bg-slate-800 active:bg-cyan-600 text-slate-200 border border-slate-600 rounded flex items-center justify-center text-xs font-bold active:scale-95">▲</button>
+      <div></div>
+      <button id="btnTouchLeft" class="bg-slate-800 active:bg-cyan-600 text-slate-200 border border-slate-600 rounded flex items-center justify-center text-xs font-bold active:scale-95">◀</button>
+      <button id="btnTouchDown" class="bg-slate-800 active:bg-cyan-600 text-slate-200 border border-slate-600 rounded flex items-center justify-center text-xs font-bold active:scale-95">▼</button>
+      <button id="btnTouchRight" class="bg-slate-800 active:bg-cyan-600 text-slate-200 border border-slate-600 rounded flex items-center justify-center text-xs font-bold active:scale-95">▶</button>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="btnTouchHyperspace" class="bg-purple-900 active:bg-purple-700 text-purple-200 border border-purple-500 rounded px-2.5 py-4 text-[9px] font-bold">
+        HYPER
+      </button>
+      <button id="btnTouchBomb" class="bg-yellow-700 active:bg-yellow-500 text-yellow-100 border border-yellow-400 rounded px-3 py-4 text-[10px] font-bold">
+        BOMB
+      </button>
+      <button id="btnTouchFire" class="bg-cyan-600 active:bg-cyan-400 text-black border-2 border-cyan-200 rounded px-5 py-4 text-xs font-bold">
+        FIRE
+      </button>
+    </div>
+  </div>
+
+  <!-- AUDIO ELEMENTS -->
+  <audio id="userAudioElement" loop class="hidden"></audio>
+
+  <!-- JAVASCRIPT GAME ENGINE -->
+  <script>
+    /**
+     * DEFENDER: 1980s Vector Arcade Tribute Engine
+     * Infinite Procedural Wave Scaling, Landers, Bombers, Space Mines, Pods,
+     * Swarmers, Mutants, Baiters, Humanoid Abduction Loop & Audio Deck.
+     */
+
+    // --- GAME CONSTANTS & WORLD CONFIG ---
+    const WORLD_WIDTH = 8000;
+    const WORLD_HEIGHT = 800;
+    const STARS_COUNT = 240;
+    const INITIAL_HUMANOIDS = 10;
+    const MAX_LIVES = 3;
+    const MAX_BOMBS = 3;
+
+    // --- VECTOR CRT PHOSPHOR BEAM HELPER ---
+    // Simulates genuine vector monitor beam intensity with multi-pass stroke widths
+    function drawVectorWireframe(renderFn, color, coreColor = '#ffffff', width = 2) {
+      ctx.save();
+      // Outer beam dispersion
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.25;
+      ctx.lineWidth = width + 4;
+      renderFn();
+      // Medium beam intensity
+      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = width + 1.5;
+      renderFn();
+      // Core beam
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = coreColor || color;
+      ctx.lineWidth = width;
+      renderFn();
+      ctx.restore();
+    }
+
+    // --- WEB AUDIO API SYNTHESIZER ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.musicGain = null;
+        this.sfxGain = null;
+        this.synthBgmActive = true;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.65;
+        this.masterGain.connect(this.ctx.destination);
+
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.8;
+        this.sfxGain.connect(this.masterGain);
+
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = 0.5;
+        this.musicGain.connect(this.masterGain);
+
+        this.startSynthBGM();
+      }
+
+      resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setVolume(v) {
+        if (this.masterGain) {
+          this.masterGain.gain.value = v;
+        }
+      }
+
+      playLaser() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+
+        osc.frequency.setValueAtTime(1400, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.11);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.11);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.12);
+      }
+
+      playExplosion(type = 'medium') {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const dur = type === 'big' ? 0.75 : (type === 'small' ? 0.22 : 0.45);
+        const bufferSize = this.ctx.sampleRate * dur;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(type === 'big' ? 650 : 950, now);
+        filter.frequency.exponentialRampToValueAtTime(30, now + dur);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(type === 'big' ? 0.9 : 0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.sfxGain);
+
+        noise.start(now);
+      }
+
+      playAbductionPing() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+
+        osc.frequency.setValueAtTime(950, now);
+        osc.frequency.setValueAtTime(1300, now + 0.06);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.13);
+      }
+
+      playRescueChime() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+
+          gain.gain.setValueAtTime(0.3, now + idx * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.18);
+
+          osc.connect(gain);
+          gain.connect(this.sfxGain);
+
+          osc.start(now + idx * 0.07);
+          osc.stop(now + idx * 0.07 + 0.2);
+        });
+      }
+
+      playSmartBomb() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        this.playExplosion('big');
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(90, now);
+        osc.frequency.exponentialRampToValueAtTime(900, now + 0.3);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.85);
+
+        gain.gain.setValueAtTime(0.55, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.85);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.9);
+      }
+
+      playHyperspace() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(2600, now + 0.22);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.42);
+
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.46);
+      }
+
+      playThrustPulse() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(60 + Math.random() * 25, now);
+
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      playMineBeep() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(700, now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      }
+
+      startSynthBGM() {
+        if (this.bgmTimer) clearInterval(this.bgmTimer);
+        const bassLine = [110, 110, 130.81, 146.83, 110, 110, 98, 123.47];
+        const arpLine = [440, 523.25, 659.25, 523.25, 783.99, 659.25, 523.25, 440];
+
+        this.bgmTimer = setInterval(() => {
+          if (!this.synthBgmActive || !this.ctx || gameState !== 'PLAYING') return;
+
+          const now = this.ctx.currentTime;
+          const bassFreq = bassLine[this.bgmStep % bassLine.length];
+          const arpFreq = arpLine[this.bgmStep % arpLine.length];
+
+          const oscB = this.ctx.createOscillator();
+          const gainB = this.ctx.createGain();
+          oscB.type = 'sawtooth';
+          oscB.frequency.setValueAtTime(bassFreq * 0.5, now);
+          gainB.gain.setValueAtTime(0.08, now);
+          gainB.gain.exponentialRampToValueAtTime(0.005, now + 0.16);
+          oscB.connect(gainB);
+          gainB.connect(this.musicGain);
+          oscB.start(now);
+          oscB.stop(now + 0.18);
+
+          if (this.bgmStep % 2 === 0) {
+            const oscL = this.ctx.createOscillator();
+            const gainL = this.ctx.createGain();
+            oscL.type = 'square';
+            oscL.frequency.setValueAtTime(arpFreq, now);
+            gainL.gain.setValueAtTime(0.04, now);
+            gainL.gain.exponentialRampToValueAtTime(0.002, now + 0.1);
+            oscL.connect(gainL);
+            gainL.connect(this.musicGain);
+            oscL.start(now);
+            oscL.stop(now + 0.12);
+          }
+
+          this.bgmStep++;
+        }, 150);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // --- DYNAMIC PROCEDURAL WAVE FORMULAS ---
+    function getWaveParams(w) {
+      return {
+        // Alien Counts: smoothly scale without hard limits
+        landerCount: Math.min(30, 10 + (w - 1) * 2),
+        bomberCount: w >= 2 ? Math.min(12, 1 + Math.floor((w - 2) * 1.5)) : 0,
+        podCount: Math.min(8, 1 + Math.floor(w / 2)),
+        directMutants: w >= 3 ? Math.min(12, Math.floor((w - 2) * 1.5)) : 0,
+        // Anti-camping pacing timer: frames before an interceptor Baiter enters sector
+        baiterTimer: Math.max(720, 2400 - (w - 1) * 160),
+        // Agility and Speed scalers
+        bulletSpeed: Math.min(8.5, 4.2 + (w - 1) * 0.3),
+        tractorSpeed: Math.min(3.2, 1.5 + (w - 1) * 0.14),
+        shootCooldownMin: Math.max(40, 110 - (w - 1) * 6),
+        shootCooldownMax: Math.max(80, 200 - (w - 1) * 9)
+      };
+    }
+
+    // --- GAME ENGINE STATE & CANVAS ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scannerCanvas = document.getElementById('scannerCanvas');
+    const scanCtx = scannerCanvas.getContext('2d');
+
+    let screenWidth = window.innerWidth;
+    let screenHeight = window.innerHeight;
+
+    let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER', 'PAUSED'
+    let wavePhase = 'ACTIVE'; // 'ACTIVE', 'TRANSITION'
+    let waveTransitionTimer = 0;
+    let waveTimeInFrames = 0;
+
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('defender_highscore') || '10000', 10);
+    let wave = 1;
+    let currentWaveParams = getWaveParams(1);
+    let lives = MAX_LIVES;
+    let smartBombs = MAX_BOMBS;
+    let humanoidsSavedCount = 0;
+    let planetExploded = false;
+    let shakeIntensity = 0;
+    let screenFlashFrames = 0;
+    let cameraX = 0;
+
+    // Terrain Profile: Periodic points wrapping every WORLD_WIDTH
+    let terrainPoints = [];
+    const TERRAIN_SEGMENT_WIDTH = 100;
+    const GROUND_BASE_Y = 680;
+
+    function generateTerrain() {
+      terrainPoints = [];
+      const numPoints = Math.ceil(WORLD_WIDTH / TERRAIN_SEGMENT_WIDTH);
+      let curY = GROUND_BASE_Y;
+
+      for (let i = 0; i < numPoints; i++) {
+        terrainPoints.push({
+          x: i * TERRAIN_SEGMENT_WIDTH,
+          y: curY
+        });
+        curY += (Math.random() * 90 - 45);
+        if (curY < 520) curY = 520;
+        if (curY > 750) curY = 750;
+      }
+      terrainPoints[numPoints - 1].y = terrainPoints[0].y;
+    }
+
+    function getGroundY(x) {
+      if (planetExploded) return WORLD_HEIGHT + 600;
+      const wrappedX = (x % WORLD_WIDTH + WORLD_WIDTH) % WORLD_WIDTH;
+      const index = Math.floor(wrappedX / TERRAIN_SEGMENT_WIDTH);
+      const nextIndex = (index + 1) % terrainPoints.length;
+      const fraction = (wrappedX % TERRAIN_SEGMENT_WIDTH) / TERRAIN_SEGMENT_WIDTH;
+      const y1 = terrainPoints[index].y;
+      const y2 = terrainPoints[nextIndex].y;
+      return y1 + (y2 - y1) * fraction;
+    }
+
+    // Starfield
+    let stars = [];
+    function initStars() {
+      stars = [];
+      for (let i = 0; i < STARS_COUNT; i++) {
+        stars.push({
+          x: Math.random() * WORLD_WIDTH,
+          y: Math.random() * (WORLD_HEIGHT - 100),
+          size: Math.random() < 0.2 ? 2.5 : (Math.random() < 0.6 ? 1.5 : 1),
+          speedFactor: 0.1 + Math.random() * 0.4,
+          color: ['#ffffff', '#38bdf8', '#f43f5e', '#fef08a'][Math.floor(Math.random() * 4)]
+        });
+      }
+    }
+
+    // --- GAME ACTOR CLASSES ---
+
+    // 1. The Player Ship (Defender Starfighter)
+    class PlayerShip {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.x = 2000;
+        this.y = 350;
+        this.vx = 0;
+        this.vy = 0;
+        this.facing = 1; // 1 = right, -1 = left
+        this.width = 38;
+        this.height = 16;
+        this.alive = true;
+        this.respawnTimer = 0;
+        this.thrusting = false;
+        this.carryingHumanoid = null;
+        this.fireCooldown = 0;
+      }
+
+      update(keys) {
+        if (!this.alive) {
+          if (this.respawnTimer > 0) {
+            this.respawnTimer--;
+            if (this.respawnTimer === 0) {
+              if (lives > 0) {
+                this.alive = true;
+                this.x = (cameraX + screenWidth / 2) % WORLD_WIDTH;
+                this.y = 350;
+                this.vx = 0;
+                this.vy = 0;
+              } else {
+                triggerGameOver();
+              }
+            }
+          }
+          return;
+        }
+
+        // Vertical pitch controls
+        const PITCH_ACCEL = 0.78;
+        const MAX_VY = 8.8;
+        if (keys.ArrowUp || keys.KeyW) {
+          this.vy -= PITCH_ACCEL;
+        } else if (keys.ArrowDown || keys.KeyS) {
+          this.vy += PITCH_ACCEL;
+        } else {
+          this.vy *= 0.88;
+        }
+        this.vy = Math.max(-MAX_VY, Math.min(MAX_VY, this.vy));
+
+        // Horizontal thrust with inertia drift
+        const THRUST_ACCEL = 0.95;
+        const MAX_VX = 15.5;
+        this.thrusting = false;
+
+        if (keys.ArrowRight || keys.KeyD) {
+          this.facing = 1;
+          this.vx += THRUST_ACCEL;
+          this.thrusting = true;
+        } else if (keys.ArrowLeft || keys.KeyA) {
+          this.facing = -1;
+          this.vx -= THRUST_ACCEL;
+          this.thrusting = true;
+        } else {
+          this.vx *= 0.975;
+        }
+        this.vx = Math.max(-MAX_VX, Math.min(MAX_VX, this.vx));
+
+        if (this.thrusting && Math.random() < 0.35) {
+          sound.playThrustPulse();
+        }
+
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+
+        // Altitude constraints
+        const groundY = getGroundY(this.x);
+        if (this.y < 45) {
+          this.y = 45;
+          this.vy = 0;
+        }
+        if (this.y > groundY - 14) {
+          if (this.carryingHumanoid && Math.abs(this.vy) < 4.2) {
+            this.depositHumanoid();
+          }
+          this.y = groundY - 14;
+          this.vy = 0;
+        }
+
+        if (this.fireCooldown > 0) this.fireCooldown--;
+        if ((keys.Space || keys.TouchFire) && this.fireCooldown <= 0) {
+          this.fireLaser();
+          this.fireCooldown = 8;
+        }
+
+        if (this.carryingHumanoid) {
+          this.carryingHumanoid.x = this.x;
+          this.carryingHumanoid.y = this.y + 14;
+        }
+      }
+
+      fireLaser() {
+        sound.playLaser();
+        const laserLength = 70;
+        const laserX = this.facing === 1 ? this.x + 20 : this.x - 20 - laserLength;
+        lasers.push(new LaserBeam(laserX, this.y, this.facing, this.vx));
+      }
+
+      depositHumanoid() {
+        if (!this.carryingHumanoid) return;
+        const h = this.carryingHumanoid;
+        h.state = 'WALKING';
+        h.y = getGroundY(h.x) - 10;
+        this.carryingHumanoid = null;
+        humanoidsSavedCount++;
+        addScore(500, this.x, this.y, '+500 DEPOSITED!');
+        sound.playRescueChime();
+      }
+
+      destroy() {
+        if (!this.alive) return;
+        this.alive = false;
+        this.respawnTimer = 90;
+        lives--;
+        updateHUD();
+        sound.playExplosion('big');
+        createExplosion(this.x, this.y, '#38bdf8', 45);
+        shakeScreen(16);
+
+        if (this.carryingHumanoid) {
+          this.carryingHumanoid.state = 'FALLING';
+          this.carryingHumanoid.vy = 1;
+          this.carryingHumanoid = null;
+        }
+      }
+
+      draw(screenX, screenY) {
+        if (!this.alive) return;
+
+        ctx.save();
+        ctx.translate(screenX, screenY);
+        ctx.scale(this.facing, 1);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.moveTo(18, 0);
+          ctx.lineTo(2, -5);
+          ctx.lineTo(-12, -7);
+          ctx.lineTo(-16, -2);
+          ctx.lineTo(-8, 0);
+          ctx.lineTo(-16, 2);
+          ctx.lineTo(-12, 7);
+          ctx.lineTo(2, 5);
+          ctx.closePath();
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(4, -3);
+          ctx.lineTo(12, 0);
+          ctx.lineTo(4, 3);
+          ctx.stroke();
+        }, '#38bdf8', '#ffffff', 2);
+
+        if (this.thrusting && Math.random() < 0.85) {
+          drawVectorWireframe(() => {
+            ctx.beginPath();
+            ctx.moveTo(-16, -3);
+            const flameLen = -24 - Math.random() * 14;
+            ctx.lineTo(flameLen, 0);
+            ctx.lineTo(-16, 3);
+            ctx.stroke();
+          }, '#f59e0b', '#ef4444', 1.8);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // 2. Laser Pulse Beam
+    class LaserBeam {
+      constructor(x, y, dir, shipVx) {
+        this.x = x;
+        this.y = y;
+        this.dir = dir;
+        this.speed = (dir * 40) + (shipVx * 0.4);
+        this.length = 68;
+        this.life = 35;
+        this.dead = false;
+      }
+
+      update() {
+        this.x = (this.x + this.speed + WORLD_WIDTH) % WORLD_WIDTH;
+        this.life--;
+        if (this.life <= 0) this.dead = true;
+      }
+
+      draw(screenX, screenY) {
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.moveTo(screenX, screenY);
+          ctx.lineTo(screenX + (this.dir * this.length), screenY);
+          ctx.stroke();
+        }, '#22d3ee', '#ffffff', 2.2);
+      }
+    }
+
+    // 3. Wandering Humanoids
+    class Humanoid {
+      constructor(x) {
+        this.x = x;
+        this.y = getGroundY(x) - 10;
+        this.vx = (Math.random() - 0.5) * 0.6;
+        this.vy = 0;
+        this.state = 'WALKING'; // 'WALKING', 'BEING_ABDUCTED', 'FALLING', 'CARRIED'
+        this.abductor = null;
+        this.dead = false;
+        this.fallStartY = 0;
+      }
+
+      update() {
+        if (this.dead) return;
+
+        if (this.state === 'WALKING') {
+          if (!planetExploded) {
+            this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+            this.y = getGroundY(this.x) - 10;
+            if (Math.random() < 0.01) this.vx = -this.vx;
+          } else {
+            this.y += 0.5;
+            if (this.y > WORLD_HEIGHT) this.dead = true;
+          }
+        } else if (this.state === 'FALLING') {
+          this.vy += 0.22;
+          this.y += this.vy;
+          const groundY = getGroundY(this.x) - 10;
+
+          if (this.y >= groundY) {
+            this.y = groundY;
+            if (this.vy > 5.5) {
+              this.dead = true;
+              sound.playExplosion('small');
+              createExplosion(this.x, this.y, '#ef4444', 16);
+              floatingTexts.push(new FloatingText('LOST!', this.x, this.y, '#ef4444'));
+              checkAllHumanoidsExtinct();
+            } else {
+              this.state = 'WALKING';
+              this.vy = 0;
+            }
+          }
+        }
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.arc(0, -7, 2.5, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(0, -4);
+          ctx.lineTo(0, 4);
+          ctx.moveTo(-4, -1);
+          ctx.lineTo(4, -1);
+
+          const legWalk = Math.sin(Date.now() * 0.01 + this.x) * 3;
+          ctx.moveTo(0, 4);
+          ctx.lineTo(-3 + legWalk, 10);
+          ctx.moveTo(0, 4);
+          ctx.lineTo(3 - legWalk, 10);
+          ctx.stroke();
+        }, '#4ade80', '#bbf7d0', 1.5);
+
+        ctx.restore();
+      }
+    }
+
+    // 4. Enemy: Lander (Abducts Humanoids & escalates with wave)
+    class Lander {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y || 80 + Math.random() * 200;
+        this.vx = (Math.random() < 0.5 ? 1 : -1) * (1.2 + Math.random() * 0.8);
+        this.vy = 0;
+        this.targetHumanoid = null;
+        this.hasAbducted = false;
+        this.width = 24;
+        this.height = 24;
+        this.shootCooldown = 60 + Math.random() * currentWaveParams.shootCooldownMax;
+        this.dead = false;
+        this.type = 'LANDER';
+      }
+
+      update() {
+        if (this.dead) return;
+
+        if (!this.targetHumanoid && !this.hasAbducted) {
+          this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+          this.y += Math.sin(Date.now() * 0.003 + this.x) * 0.5;
+
+          if (Math.random() < 0.02) {
+            const available = humanoids.filter(h => h.state === 'WALKING' && !h.dead);
+            if (available.length > 0) {
+              let closest = null;
+              let minDist = 99999;
+              available.forEach(h => {
+                const dist = Math.abs(getWrapDist(this.x, h.x));
+                if (dist < minDist && dist < 1400) {
+                  minDist = dist;
+                  closest = h;
+                }
+              });
+              if (closest) {
+                this.targetHumanoid = closest;
+                closest.state = 'BEING_ABDUCTED';
+                closest.abductor = this;
+                sound.playAbductionPing();
+              }
+            }
+          }
+        } else if (this.targetHumanoid && !this.hasAbducted) {
+          const dx = getWrapDist(this.x, this.targetHumanoid.x);
+          this.x = (this.x + Math.sign(dx) * Math.min(1.8, Math.abs(dx)) + WORLD_WIDTH) % WORLD_WIDTH;
+          this.y += currentWaveParams.tractorSpeed;
+
+          if (Math.abs(this.y - this.targetHumanoid.y) < 14 && Math.abs(dx) < 18) {
+            this.hasAbducted = true;
+            this.targetHumanoid.state = 'BEING_ABDUCTED';
+          }
+        } else if (this.hasAbducted && this.targetHumanoid) {
+          this.y -= currentWaveParams.tractorSpeed;
+          this.targetHumanoid.x = this.x;
+          this.targetHumanoid.y = this.y + 18;
+
+          if (Math.random() < 0.05) sound.playAbductionPing();
+
+          if (this.y <= 45) {
+            this.dead = true;
+            this.targetHumanoid.dead = true;
+            enemies.push(new Mutant(this.x, this.y));
+            sound.playExplosion('small');
+            floatingTexts.push(new FloatingText('MUTATED!', this.x, this.y, '#f43f5e'));
+            checkAllHumanoidsExtinct();
+            return;
+          }
+        }
+
+        this.shootCooldown--;
+        if (this.shootCooldown <= 0) {
+          this.shootCooldown = currentWaveParams.shootCooldownMin + Math.random() * (currentWaveParams.shootCooldownMax - currentWaveParams.shootCooldownMin);
+          this.shootAtPlayer();
+        }
+      }
+
+      shootAtPlayer() {
+        if (!player.alive) return;
+        const dx = getWrapDist(this.x, player.x);
+        const dy = player.y - this.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 750) {
+          const speed = currentWaveParams.bulletSpeed;
+          alienBullets.push(new AlienBullet(this.x, this.y, (dx / dist) * speed, (dy / dist) * speed));
+        }
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('medium');
+        createExplosion(this.x, this.y, '#22c55e', 26);
+        addScore(150, this.x, this.y, '+150');
+
+        if (this.targetHumanoid && this.targetHumanoid.state === 'BEING_ABDUCTED') {
+          this.targetHumanoid.state = 'FALLING';
+          this.targetHumanoid.vy = 0;
+          this.targetHumanoid.fallStartY = this.targetHumanoid.y;
+          this.targetHumanoid.abductor = null;
+        }
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.rect(-10, -8, 20, 16);
+          ctx.moveTo(-10, 8);
+          ctx.lineTo(-14, 14);
+          ctx.moveTo(10, 8);
+          ctx.lineTo(14, 14);
+          ctx.moveTo(0, -8);
+          ctx.lineTo(0, -14);
+          ctx.stroke();
+
+          if (this.targetHumanoid && !this.hasAbducted) {
+            ctx.beginPath();
+            ctx.moveTo(-8, 8);
+            ctx.lineTo(-16, 40);
+            ctx.lineTo(16, 40);
+            ctx.lineTo(8, 8);
+            ctx.stroke();
+          }
+        }, '#22c55e', '#86efac', 2);
+
+        ctx.restore();
+      }
+    }
+
+    // 5. Enemy: Bomber (Lays stationary/floating Space Mines)
+    class Bomber {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y || 100 + Math.random() * 220;
+        this.vx = (Math.random() < 0.5 ? 1 : -1) * (1.6 + Math.random() * 0.9);
+        this.oscOffset = Math.random() * Math.PI * 2;
+        this.baseY = this.y;
+        this.width = 24;
+        this.height = 24;
+        this.mineCooldown = 70 + Math.random() * 90;
+        this.dead = false;
+        this.type = 'BOMBER';
+      }
+
+      update() {
+        if (this.dead) return;
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y = this.baseY + Math.sin(Date.now() * 0.002 + this.oscOffset) * 45;
+
+        this.mineCooldown--;
+        if (this.mineCooldown <= 0) {
+          this.mineCooldown = 90 + Math.random() * 120;
+          spaceMines.push(new SpaceMine(this.x, this.y));
+          sound.playMineBeep();
+        }
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('medium');
+        createExplosion(this.x, this.y, '#38bdf8', 30);
+        addScore(250, this.x, this.y, '+250 BOMBER');
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.rect(-11, -11, 22, 22);
+          ctx.moveTo(-11, -11);
+          ctx.lineTo(11, 11);
+          ctx.moveTo(11, -11);
+          ctx.lineTo(-11, 11);
+          ctx.stroke();
+        }, '#38bdf8', '#bae6fd', 2);
+
+        ctx.restore();
+      }
+    }
+
+    // 6. Hazard: Space Mine (Floating proximity ordinance)
+    class SpaceMine {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.width = 16;
+        this.height = 16;
+        this.life = 750; // Lasts ~12.5 seconds
+        this.dead = false;
+        this.type = 'MINE';
+      }
+
+      update() {
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+        this.life--;
+        if (this.life <= 0) this.dead = true;
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('small');
+        createExplosion(this.x, this.y, '#fb923c', 16);
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        const pulseColor = Math.floor(Date.now() / 150) % 2 === 0 ? '#f97316' : '#facc15';
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.moveTo(-7, -7);
+          ctx.lineTo(7, 7);
+          ctx.moveTo(7, -7);
+          ctx.lineTo(-7, 7);
+          ctx.moveTo(0, -9);
+          ctx.lineTo(0, 9);
+          ctx.moveTo(-9, 0);
+          ctx.lineTo(9, 0);
+          ctx.stroke();
+        }, pulseColor, '#ffffff', 1.8);
+
+        ctx.restore();
+      }
+    }
+
+    // 7. Enemy: Mutant (Frenzied homing threat)
+    class Mutant {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = (Math.random() - 0.5) * 4;
+        this.width = 24;
+        this.height = 24;
+        this.dead = false;
+        this.shootCooldown = 35 + Math.random() * 50;
+        this.type = 'MUTANT';
+      }
+
+      update() {
+        if (this.dead) return;
+
+        if (player.alive) {
+          const dx = getWrapDist(this.x, player.x);
+          const dy = player.y - this.y;
+          const dist = Math.hypot(dx, dy);
+
+          this.vx += (dx / dist) * 0.48 + (Math.random() - 0.5) * 0.8;
+          this.vy += (dy / dist) * 0.48 + (Math.random() - 0.5) * 0.8;
+        }
+
+        this.vx *= 0.96;
+        this.vy *= 0.96;
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+
+        if (this.y < 45) this.y = 45;
+        if (this.y > WORLD_HEIGHT - 60) this.y = WORLD_HEIGHT - 60;
+
+        this.shootCooldown--;
+        if (this.shootCooldown <= 0) {
+          this.shootCooldown = 40 + Math.random() * 60;
+          if (player.alive) {
+            const dx = getWrapDist(this.x, player.x);
+            const dy = player.y - this.y;
+            const dist = Math.hypot(dx, dy);
+            const speed = currentWaveParams.bulletSpeed + 0.6;
+            alienBullets.push(new AlienBullet(this.x, this.y, (dx / dist) * speed, (dy / dist) * speed));
+          }
+        }
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('medium');
+        createExplosion(this.x, this.y, '#f43f5e', 35);
+        addScore(300, this.x, this.y, '+300');
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const r = (i % 2 === 0 ? 14 : 7) + Math.sin(Date.now() * 0.02 + i) * 3;
+            const px = Math.cos(angle) * r;
+            const py = Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }, '#f43f5e', '#fbbf24', 2);
+
+        ctx.restore();
+      }
+    }
+
+    // 8. Enemy: Pod (Splits into 4-6 Swarmers)
+    class Pod {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y || 150 + Math.random() * 250;
+        this.vx = (Math.random() - 0.5) * 1.3;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.width = 26;
+        this.height = 26;
+        this.dead = false;
+        this.type = 'POD';
+      }
+
+      update() {
+        if (this.dead) return;
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+        if (this.y < 80 || this.y > 600) this.vy = -this.vy;
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('big');
+        createExplosion(this.x, this.y, '#a855f7', 35);
+        addScore(1000, this.x, this.y, '+1000 POD BUST!');
+
+        const count = 4 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+          enemies.push(new Swarmer(this.x + (Math.random() * 30 - 15), this.y + (Math.random() * 30 - 15)));
+        }
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.moveTo(0, -14);
+          ctx.lineTo(14, 0);
+          ctx.lineTo(0, 14);
+          ctx.lineTo(-14, 0);
+          ctx.closePath();
+          ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          ctx.stroke();
+        }, '#c084fc', '#f3e8ff', 2);
+
+        ctx.restore();
+      }
+    }
+
+    // 9. Enemy: Swarmer (Fast, erratic darting bees)
+    class Swarmer {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 6;
+        this.vy = (Math.random() - 0.5) * 6;
+        this.width = 14;
+        this.height = 14;
+        this.dead = false;
+        this.type = 'SWARMER';
+        this.shootCooldown = 50 + Math.random() * 70;
+      }
+
+      update() {
+        if (this.dead) return;
+
+        if (player.alive) {
+          const dx = getWrapDist(this.x, player.x);
+          const dy = player.y - this.y;
+          const dist = Math.hypot(dx, dy);
+          this.vx += (dx / dist) * 0.48;
+          this.vy += (dy / dist) * 0.48;
+        }
+
+        this.vx *= 0.95;
+        this.vy *= 0.95;
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+
+        this.shootCooldown--;
+        if (this.shootCooldown <= 0) {
+          this.shootCooldown = 80 + Math.random() * 90;
+          if (player.alive) {
+            const dx = getWrapDist(this.x, player.x);
+            const dy = player.y - this.y;
+            const dist = Math.hypot(dx, dy);
+            alienBullets.push(new AlienBullet(this.x, this.y, (dx / dist) * currentWaveParams.bulletSpeed, (dy / dist) * currentWaveParams.bulletSpeed));
+          }
+        }
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('small');
+        createExplosion(this.x, this.y, '#f59e0b', 20);
+        addScore(150, this.x, this.y, '+150');
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.moveTo(7, 0);
+          ctx.lineTo(-7, -6);
+          ctx.lineTo(-3, 0);
+          ctx.lineTo(-7, 6);
+          ctx.closePath();
+          ctx.stroke();
+        }, '#f59e0b', '#fef08a', 1.8);
+
+        ctx.restore();
+      }
+    }
+
+    // 10. Enemy: Baiter (Hyper-speed interceptor)
+    class Baiter {
+      constructor(x, y) {
+        this.x = x || (cameraX + screenWidth + 200) % WORLD_WIDTH;
+        this.y = y || 200 + Math.random() * 300;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = 28;
+        this.height = 16;
+        this.dead = false;
+        this.shootCooldown = 30;
+        this.type = 'BAITER';
+      }
+
+      update() {
+        if (this.dead) return;
+
+        if (player.alive) {
+          const dx = getWrapDist(this.x, player.x);
+          const dy = player.y - this.y;
+          const dist = Math.hypot(dx, dy);
+          const maxSpeed = 17.5; // Outpaces Defender!
+
+          this.vx += (dx / dist) * 0.75;
+          this.vy += (dy / dist) * 0.75;
+
+          const curSpeed = Math.hypot(this.vx, this.vy);
+          if (curSpeed > maxSpeed) {
+            this.vx = (this.vx / curSpeed) * maxSpeed;
+            this.vy = (this.vy / curSpeed) * maxSpeed;
+          }
+        }
+
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+
+        this.shootCooldown--;
+        if (this.shootCooldown <= 0) {
+          this.shootCooldown = 35 + Math.random() * 35;
+          if (player.alive) {
+            const dx = getWrapDist(this.x, player.x);
+            const dy = player.y - this.y;
+            const dist = Math.hypot(dx, dy);
+            alienBullets.push(new AlienBullet(this.x, this.y, (dx / dist) * 6.5, (dy / dist) * 6.5));
+          }
+        }
+      }
+
+      destroy() {
+        this.dead = true;
+        sound.playExplosion('big');
+        createExplosion(this.x, this.y, '#eab308', 35);
+        addScore(200, this.x, this.y, '+200 BAITER');
+      }
+
+      draw(screenX, screenY) {
+        if (this.dead) return;
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.moveTo(-16, 0);
+          ctx.lineTo(0, -6);
+          ctx.lineTo(16, 0);
+          ctx.lineTo(0, 6);
+          ctx.closePath();
+          ctx.stroke();
+        }, '#fef08a', '#ffffff', 2);
+
+        ctx.restore();
+      }
+    }
+
+    // 11. Alien Projectile Bolt
+    class AlienBullet {
+      constructor(x, y, vx, vy) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.life = 120;
+        this.dead = false;
+      }
+
+      update() {
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+        this.life--;
+        if (this.life <= 0) this.dead = true;
+      }
+
+      draw(screenX, screenY) {
+        drawVectorWireframe(() => {
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, 3, 0, Math.PI * 2);
+          ctx.stroke();
+        }, '#ef4444', '#ffffff', 1.5);
+      }
+    }
+
+    // 12. Particles & Floating Text
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.5 + Math.random() * 5.5;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.color = color;
+        this.life = 25 + Math.random() * 25;
+        this.maxLife = this.life;
+        this.size = 1.5 + Math.random() * 2;
+      }
+
+      update() {
+        this.x = (this.x + this.vx + WORLD_WIDTH) % WORLD_WIDTH;
+        this.y += this.vy;
+        this.vx *= 0.95;
+        this.vy *= 0.95;
+        this.life--;
+      }
+
+      draw(screenX, screenY) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(screenX, screenY, this.size, this.size);
+        ctx.restore();
+      }
+    }
+
+    class FloatingText {
+      constructor(text, x, y, color) {
+        this.text = text;
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.life = 45;
+        this.maxLife = 45;
+      }
+
+      update() {
+        this.y -= 1;
+        this.life--;
+      }
+
+      draw(screenX, screenY) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillStyle = this.color;
+        ctx.fillText(this.text, screenX - 25, screenY);
+        ctx.restore();
+      }
+    }
+
+    // --- GAME ARRAYS ---
+    const player = new PlayerShip();
+    let humanoids = [];
+    let enemies = [];
+    let spaceMines = [];
+    let lasers = [];
+    let alienBullets = [];
+    let particles = [];
+    let floatingTexts = [];
+
+    function getWrapDist(x1, x2) {
+      let dx = x2 - x1;
+      if (dx > WORLD_WIDTH / 2) dx -= WORLD_WIDTH;
+      if (dx < -WORLD_WIDTH / 2) dx += WORLD_WIDTH;
+      return dx;
+    }
+
+    function createExplosion(x, y, color, count = 25) {
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+      }
+    }
+
+    function shakeScreen(intensity) {
+      shakeIntensity = intensity;
+    }
+
+    // Score & Bonus Ship / Smart Bomb Award Every 10,000 Points
+    function addScore(pts, x, y, label) {
+      const oldScore = score;
+      score += pts;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('defender_highscore', highScore.toString());
+      }
+      if (label && x !== undefined && y !== undefined) {
+        floatingTexts.push(new FloatingText(label, x, y, '#22d3ee'));
+      }
+      // Award extra ship and smart bomb canister every 10,000 pts
+      if (Math.floor(score / 10000) > Math.floor(oldScore / 10000)) {
+        lives = Math.min(6, lives + 1);
+        smartBombs = Math.min(6, smartBombs + 1);
+        sound.playRescueChime();
+        floatingTexts.push(new FloatingText('+1 SHIP & +1 BOMB!', player.x, player.y - 30, '#facc15'));
+      }
+      updateHUD();
+    }
+
+    function checkAllHumanoidsExtinct() {
+      const living = humanoids.filter(h => !h.dead).length;
+      if (living === 0 && !planetExploded) {
+        planetExploded = true;
+        sound.playSmartBomb();
+        shakeScreen(30);
+        document.getElementById('hudPlanetNotice').textContent = 'PLANET DESTROYED // SPACE STORM ACTIVE';
+        document.getElementById('hudPlanetNotice').className = 'text-[9px] text-red-500 font-bold animate-pulse';
+
+        // All active landers instantly mutate!
+        enemies.forEach(e => {
+          if (e.type === 'LANDER') {
+            e.dead = true;
+            enemies.push(new Mutant(e.x, e.y));
+          }
+        });
+      }
+    }
+
+    // Planet Reconstruction at Wave 5, Wave 10, Wave 15, etc.
+    function restorePlanet() {
+      planetExploded = false;
+      generateTerrain();
+      initHumanoids();
+      document.getElementById('hudPlanetNotice').textContent = 'PLANETARY CRUST RESTORED';
+      document.getElementById('hudPlanetNotice').className = 'text-[9px] text-emerald-400 mt-0.5';
+      floatingTexts.push(new FloatingText('WORLD RESTORED!', player.x, player.y - 40, '#4ade80'));
+      sound.playRescueChime();
+    }
+
+    function initHumanoids() {
+      humanoids = [];
+      for (let i = 0; i < INITIAL_HUMANOIDS; i++) {
+        humanoids.push(new Humanoid((i * (WORLD_WIDTH / INITIAL_HUMANOIDS)) + Math.random() * 200));
+      }
+    }
+
+    // --- INFINITE WAVE SPAWNER ---
+    function startWave(w) {
+      wave = w;
+      wavePhase = 'ACTIVE';
+      waveTimeInFrames = 0;
+      currentWaveParams = getWaveParams(wave);
+
+      enemies = [];
+      spaceMines = [];
+      lasers = [];
+      alienBullets = [];
+      particles = [];
+
+      // Wave 1 init or Periodic Planet Restoration
+      if (wave === 1) {
+        planetExploded = false;
+        generateTerrain();
+        initHumanoids();
+      } else if (wave % 5 === 0 && planetExploded) {
+        restorePlanet();
+      }
+
+      // Populate scaling alien fleet
+      for (let i = 0; i < currentWaveParams.landerCount; i++) {
+        enemies.push(new Lander(Math.random() * WORLD_WIDTH));
+      }
+
+      for (let i = 0; i < currentWaveParams.bomberCount; i++) {
+        enemies.push(new Bomber(Math.random() * WORLD_WIDTH));
+      }
+
+      for (let i = 0; i < currentWaveParams.podCount; i++) {
+        enemies.push(new Pod(Math.random() * WORLD_WIDTH));
+      }
+
+      for (let i = 0; i < currentWaveParams.directMutants; i++) {
+        enemies.push(new Mutant(Math.random() * WORLD_WIDTH, 100 + Math.random() * 300));
+      }
+
+      updateHUD();
+    }
+
+    // Smart Bomb activation
+    function triggerSmartBomb() {
+      if (smartBombs <= 0 || !player.alive || gameState !== 'PLAYING') return;
+      smartBombs--;
+      updateHUD();
+      sound.playSmartBomb();
+      shakeScreen(20);
+      screenFlashFrames = 6;
+
+      const halfW = screenWidth / 2 + 60;
+      enemies.forEach(e => {
+        const dx = getWrapDist(cameraX + screenWidth / 2, e.x);
+        if (Math.abs(dx) <= halfW && !e.dead) {
+          e.destroy();
+        }
+      });
+      spaceMines.forEach(m => {
+        const dx = getWrapDist(cameraX + screenWidth / 2, m.x);
+        if (Math.abs(dx) <= halfW) m.destroy();
+      });
+      alienBullets.forEach(b => {
+        const dx = getWrapDist(cameraX + screenWidth / 2, b.x);
+        if (Math.abs(dx) <= halfW) b.dead = true;
+      });
+    }
+
+    // Hyperspace teleportation
+    function triggerHyperspace() {
+      if (!player.alive || gameState !== 'PLAYING') return;
+      sound.playHyperspace();
+
+      if (Math.random() < 0.12) {
+        player.destroy();
+        floatingTexts.push(new FloatingText('HYPERSPACE FAILED!', player.x, player.y, '#ef4444'));
+      } else {
+        player.x = Math.random() * WORLD_WIDTH;
+        player.y = 80 + Math.random() * (GROUND_BASE_Y - 200);
+        player.vx = 0;
+        player.vy = 0;
+        createExplosion(player.x, player.y, '#c084fc', 30);
+        floatingTexts.push(new FloatingText('WARPED!', player.x, player.y, '#c084fc'));
+      }
+    }
+
+    // --- INPUT CONTROLLER ---
+    const keys = {
+      ArrowUp: false,
+      ArrowDown: false,
+      ArrowLeft: false,
+      ArrowRight: false,
+      KeyW: false,
+      KeyS: false,
+      KeyA: false,
+      KeyD: false,
+      Space: false,
+      TouchFire: false
+    };
+
+    window.addEventListener('keydown', (e) => {
+      sound.resume();
+      if (e.code in keys) {
+        keys[e.code] = true;
+        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+          e.preventDefault();
+        }
+      }
+      if (e.code === 'KeyB' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        triggerSmartBomb();
+      }
+      if (e.code === 'KeyH') {
+        triggerHyperspace();
+      }
+      if (e.code === 'KeyC') {
+        toggleCRT();
+      }
+      if (e.code === 'KeyP') {
+        togglePause();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code in keys) keys[e.code] = false;
+    });
+
+    function bindTouchBtn(btnId, keyCode, onPress) {
+      const el = document.getElementById(btnId);
+      if (!el) return;
+      const start = (e) => {
+        e.preventDefault();
+        sound.init();
+        sound.resume();
+        if (keyCode) keys[keyCode] = true;
+        if (onPress) onPress();
+      };
+      const end = (e) => {
+        e.preventDefault();
+        if (keyCode) keys[keyCode] = false;
+      };
+      el.addEventListener('touchstart', start, { passive: false });
+      el.addEventListener('touchend', end, { passive: false });
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', end);
+    }
+
+    bindTouchBtn('btnTouchUp', 'ArrowUp');
+    bindTouchBtn('btnTouchDown', 'ArrowDown');
+    bindTouchBtn('btnTouchLeft', 'ArrowLeft');
+    bindTouchBtn('btnTouchRight', 'ArrowRight');
+    bindTouchBtn('btnTouchFire', 'TouchFire');
+    bindTouchBtn('btnTouchBomb', null, triggerSmartBomb);
+    bindTouchBtn('btnTouchHyperspace', null, triggerHyperspace);
+
+    function togglePause() {
+      if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+      } else if (gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+      }
+    }
+
+    function toggleCRT() {
+      const overlay = document.getElementById('crtOverlay');
+      const vignette = document.getElementById('crtVignette');
+      const status = document.getElementById('crtStatus');
+      const isVisible = overlay.style.display !== 'none';
+      overlay.style.display = isVisible ? 'none' : 'block';
+      vignette.style.display = isVisible ? 'none' : 'block';
+      status.textContent = isVisible ? 'OFF' : 'ON';
+    }
+
+    // --- HUD UPDATES ---
+    function updateHUD() {
+      document.getElementById('hudScore').textContent = score.toString().padStart(5, '0');
+      document.getElementById('hudHighScore').textContent = highScore.toString().padStart(5, '0');
+      document.getElementById('hudWaveTitle').textContent = `WAVE ${wave}`;
+
+      const livesContainer = document.getElementById('hudLives');
+      livesContainer.innerHTML = '';
+      for (let i = 0; i < lives; i++) {
+        livesContainer.innerHTML += `
+          <svg class="w-3.5 h-3.5 text-cyan-400 fill-current" viewBox="0 0 24 24">
+            <path d="M2 12l20-8-5 8 5 8z"/>
+          </svg>`;
+      }
+
+      const bombsContainer = document.getElementById('hudBombs');
+      bombsContainer.innerHTML = '';
+      for (let i = 0; i < smartBombs; i++) {
+        bombsContainer.innerHTML += `
+          <span class="inline-block w-2 h-3.5 bg-yellow-400 rounded-sm border border-yellow-200"></span>`;
+      }
+    }
+
+    function triggerGameOver() {
+      gameState = 'GAMEOVER';
+      document.getElementById('finalScoreVal').textContent = score;
+      document.getElementById('finalHighScoreVal').textContent = highScore;
+      document.getElementById('finalWaveVal').textContent = wave;
+      document.getElementById('finalSavedVal').textContent = humanoidsSavedCount;
+      document.getElementById('gameOverScreen').classList.remove('hidden');
+    }
+
+    function startNewGame() {
+      score = 0;
+      wave = 1;
+      lives = MAX_LIVES;
+      smartBombs = MAX_BOMBS;
+      humanoidsSavedCount = 0;
+      player.reset();
+      generateTerrain();
+      initStars();
+      startWave(1);
+      updateHUD();
+      document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('gameOverScreen').classList.add('hidden');
+      gameState = 'PLAYING';
+    }
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      sound.init();
+      sound.resume();
+      startNewGame();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      startNewGame();
+    });
+
+    // --- CHIPTUNE PLAYER LOGIC ---
+    const chiptuneInput = document.getElementById('chiptuneFileInput');
+    const chiptuneLabel = document.getElementById('chiptuneLabel');
+    const userAudio = document.getElementById('userAudioElement');
+    const bgmToggleBtn = document.getElementById('bgmToggleBtn');
+    const bgmStatusText = document.getElementById('bgmStatusText');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const crtToggleBtn = document.getElementById('crtToggleBtn');
+
+    chiptuneInput.addEventListener('change', function(e) {
+      sound.init();
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        userAudio.src = url;
+        userAudio.volume = parseFloat(volumeSlider.value);
+        userAudio.play().then(() => {
+          chiptuneLabel.textContent = file.name.substring(0, 11).toUpperCase() + '..';
+          sound.synthBgmActive = false;
+          bgmStatusText.textContent = 'USER';
+          bgmStatusText.className = 'text-cyan-400';
+        }).catch(err => console.warn(err));
+      }
+    });
+
+    bgmToggleBtn.addEventListener('click', () => {
+      sound.init();
+      sound.synthBgmActive = !sound.synthBgmActive;
+      if (sound.synthBgmActive) {
+        userAudio.pause();
+        bgmStatusText.textContent = 'ON';
+        bgmStatusText.className = 'text-emerald-400';
+      } else {
+        bgmStatusText.textContent = 'OFF';
+        bgmStatusText.className = 'text-slate-400';
+      }
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      sound.setVolume(v);
+      userAudio.volume = v;
+    });
+
+    crtToggleBtn.addEventListener('click', toggleCRT);
+
+    function resizeCanvas() {
+      screenWidth = canvas.width = window.innerWidth;
+      screenHeight = canvas.height = window.innerHeight;
+      scannerCanvas.width = scannerCanvas.parentElement.clientWidth || 400;
+      scannerCanvas.height = 36;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    generateTerrain();
+    initStars();
+    updateHUD();
+
+    // --- MAIN GAME LOOP ---
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      if (gameState === 'PLAYING') {
+        updateGame();
+      }
+
+      renderGame();
+      renderRadar();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateGame() {
+      player.update(keys);
+
+      // Camera lead offset
+      const targetCamX = player.x - (player.facing === 1 ? screenWidth * 0.35 : screenWidth * 0.65);
+      let camDiff = targetCamX - cameraX;
+      if (camDiff > WORLD_WIDTH / 2) camDiff -= WORLD_WIDTH;
+      if (camDiff < -WORLD_WIDTH / 2) camDiff += WORLD_WIDTH;
+      cameraX = (cameraX + camDiff * 0.12 + WORLD_WIDTH) % WORLD_WIDTH;
+
+      lasers.forEach(l => l.update());
+      lasers = lasers.filter(l => !l.dead);
+
+      alienBullets.forEach(b => b.update());
+      alienBullets = alienBullets.filter(b => !b.dead);
+
+      spaceMines.forEach(m => m.update());
+      spaceMines = spaceMines.filter(m => !m.dead);
+
+      humanoids.forEach(h => {
+        h.update();
+        if (h.state === 'FALLING' && player.alive && !player.carryingHumanoid) {
+          const dx = Math.abs(getWrapDist(player.x, h.x));
+          const dy = Math.abs(player.y - h.y);
+          if (dx < 32 && dy < 32) {
+            h.state = 'CARRIED';
+            player.carryingHumanoid = h;
+            sound.playRescueChime();
+            addScore(500, player.x, player.y, '+500 CAUGHT!');
+          }
+        }
+      });
+
+      enemies.forEach(e => e.update());
+
+      // Anti-camping pacing: spawn Baiter if sector clear takes too long
+      if (wavePhase === 'ACTIVE') {
+        waveTimeInFrames++;
+        if (waveTimeInFrames > currentWaveParams.baiterTimer) {
+          const hasBaiter = enemies.some(e => e.type === 'BAITER');
+          if (!hasBaiter) {
+            enemies.push(new Baiter());
+            floatingTexts.push(new FloatingText('WARNING: BAITER DETECTED!', player.x, player.y - 30, '#fef08a'));
+          }
+        }
+      }
+
+      // Laser vs Enemies
+      lasers.forEach(l => {
+        enemies.forEach(e => {
+          if (e.dead) return;
+          const dx = Math.abs(getWrapDist(l.x + (l.dir * l.length * 0.5), e.x));
+          const dy = Math.abs(l.y - e.y);
+          if (dx < (e.width / 2 + l.length * 0.5) && dy < (e.height / 2 + 8)) {
+            e.destroy();
+            l.dead = true;
+          }
+        });
+        // Laser vs Space Mines
+        spaceMines.forEach(m => {
+          if (m.dead) return;
+          const dx = Math.abs(getWrapDist(l.x + (l.dir * l.length * 0.5), m.x));
+          const dy = Math.abs(l.y - m.y);
+          if (dx < (m.width / 2 + l.length * 0.5) && dy < (m.height / 2 + 8)) {
+            m.destroy();
+            l.dead = true;
+          }
+        });
+      });
+
+      // Player Collisions
+      if (player.alive) {
+        enemies.forEach(e => {
+          if (e.dead) return;
+          const dx = Math.abs(getWrapDist(player.x, e.x));
+          const dy = Math.abs(player.y - e.y);
+          if (dx < (player.width / 2 + e.width / 2 - 4) && dy < (player.height / 2 + e.height / 2 - 4)) {
+            player.destroy();
+            e.destroy();
+          }
+        });
+
+        spaceMines.forEach(m => {
+          if (m.dead) return;
+          const dx = Math.abs(getWrapDist(player.x, m.x));
+          const dy = Math.abs(player.y - m.y);
+          if (dx < 16 && dy < 16) {
+            player.destroy();
+            m.destroy();
+          }
+        });
+
+        alienBullets.forEach(b => {
+          if (b.dead) return;
+          const dx = Math.abs(getWrapDist(player.x, b.x));
+          const dy = Math.abs(player.y - b.y);
+          if (dx < 16 && dy < 14) {
+            player.destroy();
+            b.dead = true;
+          }
+        });
+      }
+
+      enemies = enemies.filter(e => !e.dead);
+
+      // --- 2-STAGE WAVE CLEAR & TRANSITION SEQUENCE ---
+      if (enemies.length === 0 && wavePhase === 'ACTIVE') {
+        wavePhase = 'TRANSITION';
+        waveTransitionTimer = 0;
+
+        const livingCount = humanoids.filter(h => !h.dead).length;
+        const waveMultiplier = wave * 100;
+        const totalBonus = livingCount * waveMultiplier;
+
+        if (totalBonus > 0) {
+          addScore(totalBonus, player.x, player.y, `+${totalBonus} SURVIVOR BONUS`);
+          sound.playRescueChime();
+        }
+
+        const banner = document.getElementById('waveBanner');
+        document.getElementById('waveBannerTitle').textContent = `WAVE ${wave} CLEARED`;
+        document.getElementById('waveBannerSub').textContent = `SECTOR PURGED // PROCEEDING TO NEXT VECTOR`;
+        document.getElementById('waveBannerTally').textContent = `HUMANOIDS: ${livingCount} x ${waveMultiplier} = ${totalBonus} PTS`;
+        banner.classList.remove('hidden');
+        banner.style.opacity = '1';
+      }
+
+      if (wavePhase === 'TRANSITION') {
+        waveTransitionTimer++;
+        if (waveTransitionTimer === 80) {
+          document.getElementById('waveBannerTitle').textContent = `PREPARE FOR WAVE ${wave + 1}`;
+          document.getElementById('waveBannerSub').textContent = `INCOMING SCALED INVASION FLEET`;
+          document.getElementById('waveBannerTally').textContent = ``;
+        }
+        if (waveTransitionTimer >= 140) {
+          const banner = document.getElementById('waveBanner');
+          banner.style.opacity = '0';
+          setTimeout(() => banner.classList.add('hidden'), 300);
+          startWave(wave + 1);
+        }
+      }
+
+      particles.forEach(p => p.update());
+      particles = particles.filter(p => p.life > 0);
+
+      floatingTexts.forEach(ft => ft.update());
+      floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+
+      if (shakeIntensity > 0) shakeIntensity *= 0.9;
+    }
+
+    // --- RENDER SYSTEM (VECTOR WIREFRAME PHOSPHORS) ---
+    function renderGame() {
+      ctx.save();
+
+      if (shakeIntensity > 0.5) {
+        ctx.translate((Math.random() - 0.5) * shakeIntensity, (Math.random() - 0.5) * shakeIntensity);
+      }
+
+      ctx.fillStyle = planetExploded ? '#0f0205' : '#030306';
+      ctx.fillRect(0, 0, screenWidth, screenHeight);
+
+      if (screenFlashFrames > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${screenFlashFrames / 6})`;
+        ctx.fillRect(0, 0, screenWidth, screenHeight);
+        screenFlashFrames--;
+      }
+
+      stars.forEach(s => {
+        let sx = (s.x - cameraX * s.speedFactor) % screenWidth;
+        if (sx < 0) sx += screenWidth;
+        ctx.fillStyle = s.color;
+        ctx.fillRect(sx, s.y, s.size, s.size);
+      });
+
+      if (!planetExploded) {
+        renderVectorTerrain();
+      }
+
+      function renderWrapped(entity, drawFn) {
+        let screenX = (entity.x - cameraX) % WORLD_WIDTH;
+        if (screenX < -200) screenX += WORLD_WIDTH;
+        if (screenX > WORLD_WIDTH - 200) screenX -= WORLD_WIDTH;
+
+        drawFn(screenX, entity.y);
+
+        if (screenX < screenWidth) {
+          drawFn(screenX + WORLD_WIDTH, entity.y);
+        }
+        if (screenX + WORLD_WIDTH > 0) {
+          drawFn(screenX - WORLD_WIDTH, entity.y);
+        }
+      }
+
+      humanoids.forEach(h => renderWrapped(h, (sx, sy) => h.draw(sx, sy)));
+      enemies.forEach(e => renderWrapped(e, (sx, sy) => e.draw(sx, sy)));
+      spaceMines.forEach(m => renderWrapped(m, (sx, sy) => m.draw(sx, sy)));
+      lasers.forEach(l => renderWrapped(l, (sx, sy) => l.draw(sx, sy)));
+      alienBullets.forEach(b => renderWrapped(b, (sx, sy) => b.draw(sx, sy)));
+
+      if (player.alive) {
+        renderWrapped(player, (sx, sy) => player.draw(sx, sy));
+      }
+
+      particles.forEach(p => renderWrapped(p, (sx, sy) => p.draw(sx, sy)));
+      floatingTexts.forEach(ft => renderWrapped(ft, (sx, sy) => ft.draw(sx, sy)));
+
+      ctx.restore();
+    }
+
+    function renderVectorTerrain() {
+      const startIdx = Math.floor(cameraX / TERRAIN_SEGMENT_WIDTH) - 2;
+      const visibleSegments = Math.ceil(screenWidth / TERRAIN_SEGMENT_WIDTH) + 4;
+
+      drawVectorWireframe(() => {
+        ctx.beginPath();
+        for (let i = 0; i <= visibleSegments; i++) {
+          const segIdx = ((startIdx + i) % terrainPoints.length + terrainPoints.length) % terrainPoints.length;
+          const pt = terrainPoints[segIdx];
+          const worldX = (startIdx + i) * TERRAIN_SEGMENT_WIDTH;
+          const screenX = worldX - cameraX;
+
+          if (i === 0) ctx.moveTo(screenX, pt.y);
+          else ctx.lineTo(screenX, pt.y);
+        }
+        ctx.stroke();
+      }, '#f43f5e', '#fda4af', 2.5);
+    }
+
+    // --- RADAR SCANNER MINIMAP ---
+    function renderRadar() {
+      const sw = scannerCanvas.width;
+      const sh = scannerCanvas.height;
+      scanCtx.clearRect(0, 0, sw, sh);
+
+      scanCtx.fillStyle = '#05070e';
+      scanCtx.fillRect(0, 0, sw, sh);
+
+      const scaleX = sw / WORLD_WIDTH;
+      const scaleY = sh / WORLD_HEIGHT;
+
+      if (!planetExploded) {
+        scanCtx.strokeStyle = '#e11d48';
+        scanCtx.lineWidth = 1;
+        scanCtx.beginPath();
+        terrainPoints.forEach((pt, idx) => {
+          const rx = pt.x * scaleX;
+          const ry = pt.y * scaleY;
+          if (idx === 0) scanCtx.moveTo(rx, ry);
+          else scanCtx.lineTo(rx, ry);
+        });
+        scanCtx.stroke();
+      }
+
+      scanCtx.fillStyle = '#4ade80';
+      humanoids.forEach(h => {
+        if (!h.dead) scanCtx.fillRect(h.x * scaleX, h.y * scaleY, 2, 2.5);
+      });
+
+      enemies.forEach(e => {
+        if (e.dead) return;
+        if (e.type === 'LANDER') scanCtx.fillStyle = '#22c55e';
+        else if (e.type === 'BOMBER') scanCtx.fillStyle = '#38bdf8';
+        else if (e.type === 'MUTANT') scanCtx.fillStyle = '#f43f5e';
+        else if (e.type === 'POD') scanCtx.fillStyle = '#c084fc';
+        else if (e.type === 'SWARMER') scanCtx.fillStyle = '#fbbf24';
+        else if (e.type === 'BAITER') scanCtx.fillStyle = '#fef08a';
+
+        scanCtx.fillRect(e.x * scaleX - 1, e.y * scaleY - 1, 3, 3);
+      });
+
+      scanCtx.fillStyle = '#f97316';
+      spaceMines.forEach(m => {
+        if (!m.dead) scanCtx.fillRect(m.x * scaleX, m.y * scaleY, 2, 2);
+      });
+
+      if (player.alive) {
+        scanCtx.fillStyle = '#ffffff';
+        scanCtx.fillRect(player.x * scaleX - 1.5, player.y * scaleY - 1.5, 3.5, 3.5);
+      }
+
+      scanCtx.strokeStyle = '#eab308';
+      scanCtx.lineWidth = 1.2;
+      const viewWidthOnRadar = screenWidth * scaleX;
+      let viewXOnRadar = (cameraX % WORLD_WIDTH) * scaleX;
+
+      scanCtx.strokeRect(viewXOnRadar, 1, viewWidthOnRadar, sh - 2);
+      if (viewXOnRadar + viewWidthOnRadar > sw) {
+        scanCtx.strokeRect(viewXOnRadar - sw, 1, viewWidthOnRadar, sh - 2);
+      }
+    }
+
+    window.onload = function() {
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
